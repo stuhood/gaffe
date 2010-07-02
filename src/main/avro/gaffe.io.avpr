@@ -2,31 +2,44 @@
   "protocol": "Persistence", 
   "doc": "Defines the types used to persist graphs to disk.", 
   "types": [
-    {"name": "Name", "type": "record",
-     "doc": "The untyped (for now) name of a vertex.",
-     "fields": [
-       {"name": "name", "type": "bytes"}
-    ]},
     {"name": "Vertex", "type": "record",
      "doc": "A untyped (for now) vertex.",
      "fields": [
-       {"name": "name", "type": "Name"},
-       {"name": "properties", "type": {"type": "map", "values": "bytes"}}
+       {"name": "name", "type": "bytes"}
     ]},
     {"name": "VertexRef", "type": "record",
      "doc": "A reference to a vertex persisted elsewhere on disk.",
      "fields": [
-       {"name": "vertex", "type": "Name"},
+       {"name": "vertex", "type": "bytes"},
        {"name": "gen", "type": "long",
         "doc": "The generation number/file containing the vertex, or -1 for the current generation."},
        {"name": "block", "type": "long",
-        "doc": "The block number containing the vertex within the generation."}
+        "doc": "The block number containing the vertex within the generation, or -1 if unknown."}
     ]},
     {"name": "Edge", "type": "record",
      "doc": "An outbound edge.",
      "fields": [
-       {"name": "dest", "type": "VertexRef"},
-       {"name": "properties", "type": {"type": "map", "values": "bytes"}}
+       {"name": "type", "type": "bytes",
+        "doc": "Rather than being 'named' anything, edges are 'typed', and are sorted by their type."},
+       {"name": "dest", "type": ["Vertex", "VertexRef"]}
+    ]},
+    {"name": "Path", "type": "record",
+     "doc": "A vertex and list of edges defining a path.",
+     "fields": [
+       {"name": "source", "type": "Vertex"},
+       {"name": "path", "type": {"type": "array", "items": "Edge"}}
+    ]},
+    {"name": "Range", "type": "record",
+     "doc": "An ordered pair of Paths that share a prefix: 'end' is a replacement suffix for 'begin'.",
+     "fields": [
+       {"name": "begin", "type": "Path"},
+       {"name": "end", "type": "Path"}
+    ]},
+    {"name": "Chunk", "type": "record",
+     "doc": "The largest unit in a gaffe data file. Chunks are always written as pairs, with a Range followed by an array of Edges. A 'range' Chunk describes the range of paths found in the following 'edge' chunk, and allows it to be skipped without deserialization.",
+     "fields": [
+       {"name": "range", "type": ["Range", "null"]},
+       {"name": "edges", "type": {"type": "array", "items": "Edge"}}
     ]}
   ]
 }
