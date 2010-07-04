@@ -7,52 +7,58 @@ import scala.collection.JavaConversions.asIterator
 
 class Graph(generation: Long) {
     var version: Long = 0
-    private val vertices: HashMap[Value,Vertex] = HashMap.empty
-    private val edges: HashSet[OutEdge] = HashSet.empty
+    private val vertices: HashMap[Value,Adjacencies] = HashMap.empty
 
     /**
-     * Atomically adds the given paths to this graph.
+     * Assumes that the given odd numbered list of Values represents alternating Vertices and Edges, and adds is as a path in the graph.
      */
-    def add(paths: Path*): Unit = {
-        // add each path to the graph
-        for (path <- paths) {
-            var source = canonicalize(path.source, vertices)
-            for (edge <- path.edges.iterator) {
-                val dest = canonicalize(edge.dest, vertices)
-                // clone the outbound edge with the canonicalized destination
-                val e = new Edge
-                e.label = edge.label
-                e.weight = 0 // FIXME
-                e.dest = dest
-                // and add to the set of edges
-                edges + new OutEdge(source, e)
-                source = dest
-            }
+    def add(values: Value*): Unit = {
+        if (values.size % 2 == 0)
+            throw new IllegalArgumentException("value list must represent alternating vertices and edges")
+
+        // add the source
+        val iter = values.iterator
+        var source = canonicalize(iter.next, vertices)
+        // add the remaining path
+        for (pair <- iter.sliding(2)) {
+            val edge = pair(0)
+            val dest = canonicalize(pair(1), vertices)
+
+            // outbound
+            val out = new Edge
+            out.label = edge
+            out.vertex = dest.vertex
+            source.outs + out
+            // inbound
+            val in = new Edge
+            in.label = edge
+            in.vertex = source.vertex
+            dest.ins + in
+
+            source = dest
         }
         version = version + 1
     }
 
     /**
-     * Adds a vertex to the given vertices, and returns the canonical version of the vertex and the new vertices.
+     * Adds a value to the given vertices, and returns the canonical version of the vertex and its adjacencies.
      */
-    private def canonicalize(vertex: Vertex, vertices: HashMap[Value,Vertex]): Vertex = vertices.get(vertex.name) match {
-        case null =>
-            // clone the vertex and place it in the graph
-            val v = new Vertex
-            v.name = vertex.name
-            v.gen = vertex.gen
-            v.block = vertex.block
-            vertices.put(v.name, v)
-            v
-        case _ =>
-            vertex
+    private def canonicalize(value: Value, vertices: HashMap[Value,Adjacencies]): Adjacencies = {
+        vertices.get(value).getOrElse({
+            // place it in the graph
+            val adjacencies = new Adjacencies(new Vertex, Set.empty, Set.empty)
+            adjacencies.vertex.name = value
+            adjacencies.vertex.gen = -1
+            adjacencies.vertex.block = -1
+            vertices.put(value, adjacencies)
+            adjacencies})
     }
 
     override def toString: String = {
-        "#<Graph %d %s %s>".format(version, vertices.keySet, edges)
+        "#<Graph %d %s>".format(version, vertices.keySet)
     }
 
-    // adds a source Vertex to Edge
-    final class OutEdge(vertex: Vertex, edge: Edge) extends Tuple2(vertex, edge)
+    // adds adjacency lists to a Vertex
+    final class Adjacencies(val vertex: Vertex, val ins: Set[Edge], val outs: Set[Edge])
 }
 

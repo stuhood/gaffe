@@ -17,13 +17,11 @@
         "doc": "The block number containing the vertex within the generation, or -1 if unknown."}
     ]},
     {"name": "Edge", "type": "record",
-     "doc": "An outbound edge.",
+     "doc": "An in or outbound edge from the given vertex.",
      "fields": [
        {"name": "label", "type": "Value",
         "doc": "Rather than a name, edges have a label, which makes the identity of an edge a triple of (src.name, label, dest.name)."},
-       {"name": "weight", "type": "long",
-        "doc": "How frequently this edge is traversed by reads."},
-       {"name": "dest", "type": "Vertex"}
+       {"name": "vertex", "type": "Vertex"}
     ]},
     {"name": "Path", "type": "record",
      "doc": "A vertex and list of edges defining a path.",
