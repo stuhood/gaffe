@@ -3,12 +3,14 @@
   "doc": "Defines the types used to persist graphs to disk.", 
   "types": [
     {"name": "Value", "type": "record",
+     "namespace": "gaffe",
      "doc": "A untyped (for now) byte value.",
      "fields": [
        {"name": "value", "type": "bytes"}
     ]},
     {"name": "VertexRef", "type": "record",
-     "doc": "A reference to a vertex persisted in this or another generation.",
+     "doc": "A reference to a vertex in this or another generation.",
+     "namespace": "gaffe",
      "fields": [
        {"name": "gen", "type": "long",
         "doc": "The generation number/file containing the vertex, or -1 for the current generation."},
@@ -16,22 +18,23 @@
         "doc": "The block number containing the vertex within the generation, or -1 if unknown."}
     ]},
     {"name": "Vertex", "type": "record",
+     "namespace": "gaffe",
      "doc": "A  vertex.",
      "fields": [
-       {"name": "name", "type": "Value"},
+       {"name": "name", "type": "gaffe.Value"},
        {"name": "ref", "type": ["VertexRef", "null"]}
     ]},
     {"name": "OutEdge", "type": "record",
      "doc": "An outbound edge.",
      "fields": [
-       {"name": "label", "type": "Value",
+       {"name": "label", "type": "gaffe.Value",
         "doc": "Rather than a name, edges have a label, which makes the identity of an edge a triple of (src.name, label, dest.name)."},
-       {"name": "dest", "type": "Vertex"}
+       {"name": "dest", "type": "gaffe.Vertex"}
     ]},
     {"name": "Path", "type": "record",
      "doc": "A vertex and list of edges defining a path.",
      "fields": [
-       {"name": "source", "type": "Vertex"},
+       {"name": "source", "type": "gaffe.Vertex"},
        {"name": "edges", "type": {"type": "array", "items": "OutEdge"}}
     ]},
     {"name": "Range", "type": "record",
