@@ -42,6 +42,11 @@ class Graph(generation: Long) {
     }
 
     /**
+     * The current version of the graph.
+     */
+    def version = ref.get.version
+
+    /**
      * Adds a vertex to the given vertices, and returns the canonical version of the vertex and the new vertices.
      */
     private def canonicalize(vertex: Vertex, vertices: HashMap[Value,Vertex]): (Vertex, HashMap[Value,Vertex]) = vertices.get(vertex.name) match {
@@ -55,6 +60,8 @@ class Graph(generation: Long) {
             (vertex, vertices)
     }
 
+    override def toString: String = ref.get.toString
+
     // adds a source Vertex to OutEdge
     final class Edge(vertex: Vertex, edge: OutEdge) extends Tuple2(vertex, edge)
 
@@ -66,6 +73,10 @@ class Graph(generation: Long) {
         override def equals(o: Any): Boolean = o match {
             case that: GraphRef => this.version == that.version
             case _ => false
+        }
+
+        override def toString: String = {
+            "#<Graph %d %s %s>".format(version, vertices.keySet, edges)
         }
     }
 }
