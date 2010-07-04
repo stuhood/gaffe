@@ -1,8 +1,6 @@
 
 package gaffe
 
-import gaffe.io._
-
 import java.nio.ByteBuffer
 
 import org.apache.avro.Schema
@@ -24,8 +22,8 @@ class GraphSpecs extends FlatSpec with ShouldMatchers
         path.source = new Vertex
         path.source.name = new Value
         path.source.name.value = ByteBuffer.wrap("src".getBytes)
-        path.edges = new GenericData.Array[OutEdge](1, Schema.createArray(OutEdge.SCHEMA$))
-        val edge = new OutEdge
+        path.edges = new GenericData.Array[Edge](1, Schema.createArray(Edge.SCHEMA$))
+        val edge = new Edge
         edge.label = new Value
         edge.label.value = ByteBuffer.wrap("edge".getBytes)
         edge.dest = new Vertex

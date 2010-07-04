@@ -1,0 +1,49 @@
+{ "namespace": "gaffe",
+  "protocol": "GaffeProtocol", 
+  "doc": "Defines the types used to persist graphs.", 
+  "types": [
+    {"name": "Value", "type": "record",
+     "doc": "A untyped (for now) byte value.",
+     "fields": [
+       {"name": "value", "type": "bytes"}
+    ]},
+    {"name": "Vertex", "type": "record",
+     "doc": "A  vertex.",
+     "fields": [
+       {"name": "name", "type": "Value"},
+       {"name": "gen", "type": "long",
+        "doc": "The generation number/file containing the vertex, or -1 for the current generation."},
+       {"name": "block", "type": "long",
+        "doc": "The block number containing the vertex within the generation, or -1 if unknown."}
+    ]},
+    {"name": "Edge", "type": "record",
+     "doc": "An outbound edge.",
+     "fields": [
+       {"name": "label", "type": "Value",
+        "doc": "Rather than a name, edges have a label, which makes the identity of an edge a triple of (src.name, label, dest.name)."},
+       {"name": "weight", "type": "long",
+        "doc": "How frequently this edge is traversed by reads."},
+       {"name": "dest", "type": "Vertex"}
+    ]},
+    {"name": "Path", "type": "record",
+     "doc": "A vertex and list of edges defining a path.",
+     "fields": [
+       {"name": "source", "type": "Vertex"},
+       {"name": "edges", "type": {"type": "array", "items": "Edge"}}
+    ]},
+    {"name": "Range", "type": "record",
+     "namespace": "gaffe.io",
+     "doc": "An ordered pair of Paths that share a prefix: 'end' is a replacement suffix for 'begin'.",
+     "fields": [
+       {"name": "begin", "type": "gaffe.Path"},
+       {"name": "end", "type": "gaffe.Path"}
+    ]},
+    {"name": "Chunk", "type": "record",
+     "namespace": "gaffe.io",
+     "doc": "The largest unit in a gaffe data file. Chunks are always written as pairs, with a Range followed by an array of Edges. A 'range' Chunk describes the range of paths found in the following 'edge' chunk, and allows it to be skipped without deserialization.",
+     "fields": [
+       {"name": "range", "type": ["Range", "null"]},
+       {"name": "edges", "type": {"type": "array", "items": "gaffe.Edge"}}
+    ]}
+  ]
+}
