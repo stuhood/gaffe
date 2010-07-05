@@ -12,7 +12,7 @@ class Graph(generation: Long) {
     /**
      * Assumes that the given odd numbered list of Values represents alternating Vertices and Edges, and adds is as a path in the graph.
      */
-    def add(values: Value*): Unit = {
+    def add(values: List[Value]): Unit = {
         if (values.size % 2 == 0)
             throw new IllegalArgumentException("value list must represent alternating vertices and edges")
 
@@ -25,15 +25,11 @@ class Graph(generation: Long) {
             val dest = canonicalize(pair(1), vertices)
 
             // outbound
-            val out = new Edge
-            out.label = edge
-            out.vertex = dest.vertex
-            source.outs.put(out, 0)
+            val out = new Edge; out.label = edge; out.vertex = dest.vertex
+            source.outs.put(out.label, out)
             // inbound
-            val in = new Edge
-            in.label = edge
-            in.vertex = source.vertex
-            dest.ins.put(in, 0)
+            val in = new Edge; in.label = edge; in.vertex = source.vertex
+            dest.ins.put(in.label, in)
 
             source = dest
         }
@@ -41,15 +37,29 @@ class Graph(generation: Long) {
     }
 
     /**
-     * Returns an iterator over paths matching the given odd numbered list of Values (representing alternating
-     * Vertices and Edges), where option None indicates 'any value'.
+     * Returns a seq of paths matching the given odd numbered list of Values (representing alternating
+     * Vertices and Edges).
+     * TODO: handle missing values
      */
-    def get(values: Option[Value]*): Iterator[Seq[Value]] = {
-        throw new RuntimeException("Not implemented")
+    def get(values: List[Value]): List[Value] = values match {
+        case srcv :: edgev :: destv :: xs =>
+            // triple of src, edge, dest
+            println("src=%s edge=%s dest=%s".format(srcv, edgev, destv))
+            val src = vertices.get(srcv)
+            val edge = src.outs.get(edgev)
+            val dest = vertices.get(destv)
+            // recurse
+            src.vertex.name :: edge.label :: get(destv :: xs)
+        case vertex :: Nil =>
+            // tail of the path
+            List(vertices.get(vertex).vertex.name)
+        case _ =>
+            throw new IllegalArgumentException("value list must represent alternating vertices and edges: " + values)
     }
 
     /**
      * Adds a value to the given vertices, and returns the canonical version of the vertex and its adjacencies.
+     * TODO: no need to pass vertices
      */
     private def canonicalize(value: Value, vertices: TreeMap[Value,Adjacencies]): Adjacencies = {
         vertices.get(value) match {
@@ -71,6 +81,6 @@ class Graph(generation: Long) {
     }
 
     // adds adjacency lists to a Vertex
-    final class Adjacencies(val vertex: Vertex, val ins: TreeMap[Edge, Long], val outs: TreeMap[Edge, Long])
+    final class Adjacencies(val vertex: Vertex, val ins: TreeMap[Value, Edge], val outs: TreeMap[Value, Edge])
 }
 
