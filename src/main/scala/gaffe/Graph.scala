@@ -12,17 +12,17 @@ class Graph(generation: Long) {
     /**
      * Assumes that the given odd numbered list of Values represents alternating Vertices and Edges, and adds is as a path in the graph.
      */
-    def add(values: List[Value]): Unit = {
-        if (values.size % 2 == 0)
+    def add(path: List[Value]): Unit = {
+        if (path.size % 2 == 0)
             throw new IllegalArgumentException("value list must represent alternating vertices and edges")
 
         // add the source
-        val iter = values.iterator
-        var source = canonicalize(iter.next, vertices)
+        val iter = path.iterator
+        var source = canonicalize(iter.next)
         // add the remaining path
         for (pair <- iter.sliding(2)) {
             val edge = pair(0)
-            val dest = canonicalize(pair(1), vertices)
+            val dest = canonicalize(pair(1))
 
             // outbound
             val out = new Edge; out.label = edge; out.vertex = dest.vertex
@@ -41,10 +41,9 @@ class Graph(generation: Long) {
      * Vertices and Edges).
      * TODO: handle missing values
      */
-    def get(values: List[Value]): List[Value] = values match {
+    def get(path: List[Value]): List[Value] = path match {
         case srcv :: edgev :: destv :: xs =>
             // triple of src, edge, dest
-            println("src=%s edge=%s dest=%s".format(srcv, edgev, destv))
             val src = vertices.get(srcv)
             val edge = src.outs.get(edgev)
             val dest = vertices.get(destv)
@@ -54,26 +53,22 @@ class Graph(generation: Long) {
             // tail of the path
             List(vertices.get(vertex).vertex.name)
         case _ =>
-            throw new IllegalArgumentException("value list must represent alternating vertices and edges: " + values)
+            throw new IllegalArgumentException("value list must represent alternating vertices and edges")
     }
 
     /**
      * Adds a value to the given vertices, and returns the canonical version of the vertex and its adjacencies.
-     * TODO: no need to pass vertices
      */
-    private def canonicalize(value: Value, vertices: TreeMap[Value,Adjacencies]): Adjacencies = {
-        vertices.get(value) match {
-            case null =>
-                // place it in the graph
-                val adjacencies = new Adjacencies(new Vertex, new TreeMap, new TreeMap)
-                adjacencies.vertex.name = value
-                adjacencies.vertex.gen = -1
-                adjacencies.vertex.block = -1
-                vertices.put(value, adjacencies)
-                adjacencies
-            case x =>
-                x
-        }
+    private def canonicalize(value: Value): Adjacencies = vertices.get(value) match {
+        case null =>
+            // place it in the graph
+            val adjacencies = new Adjacencies(new Vertex, new TreeMap, new TreeMap)
+            adjacencies.vertex.name = value
+            adjacencies.vertex.gen = -1
+            adjacencies.vertex.block = -1
+            vertices.put(value, adjacencies)
+            adjacencies
+        case x => x
     }
 
     override def toString: String = {
