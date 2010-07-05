@@ -13,10 +13,10 @@ import org.scalatest.matchers.ShouldMatchers
 
 class GraphSpecs extends FlatSpec with ShouldMatchers
 {
-    def values(strings: String*): List[Value] = {
-        for (string <- strings) yield {
+    def values(obs: Any*): List[Value] = {
+        for (ob <- obs) yield {
             val value = new Value
-            value.value = ByteBuffer.wrap(string.getBytes)
+            value.value = ByteBuffer.wrap(ob.toString.getBytes)
             value
         }
     }.toList
