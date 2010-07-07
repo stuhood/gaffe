@@ -15,7 +15,9 @@ Building
 --------
 
 Use [sbt](http://code.google.com/p/simple-build-tool/) and locally published (for Scala 2.8) copies of
+
 - [avro-sbt](http://github.com/codahale/avro-sbt)
 - [configgy](http://github.com/robey/configgy)
+
 ...to build gaffe.
 
