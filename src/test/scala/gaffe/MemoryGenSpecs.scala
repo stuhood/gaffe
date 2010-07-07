@@ -1,12 +1,7 @@
 
 package gaffe
 
-import scala.collection.mutable.WrappedArrayBuilder
-
 import java.nio.ByteBuffer
-
-import org.apache.avro.Schema
-import org.apache.avro.generic.GenericData
 
 import org.scalatest.FlatSpec
 import org.scalatest.matchers.ShouldMatchers
