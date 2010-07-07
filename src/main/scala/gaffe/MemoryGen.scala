@@ -5,7 +5,7 @@ import java.util.TreeMap
 
 import scala.collection.JavaConversions.asIterator
 
-class Graph(generation: Long) {
+class MemoryGen(generation: Long) {
     var version: Long = 0
     private val vertices: TreeMap[Value,Adjacencies] = new TreeMap
 
@@ -72,7 +72,7 @@ class Graph(generation: Long) {
     }
 
     override def toString: String = {
-        "#<Graph %d %s>".format(version, vertices.keySet)
+        "#<MemoryGen %d %s>".format(version, vertices.keySet)
     }
 
     // adds adjacency lists to a Vertex
