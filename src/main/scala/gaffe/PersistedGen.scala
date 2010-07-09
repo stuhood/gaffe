@@ -1,84 +1,77 @@
 
 package gaffe
 
-import gaffe.io.Chunk
+import gaffe.io.{Chunk, Range}
+import gaffe.PersistedGen._
 
 import java.io.{File, FileInputStream}
 
 import scala.collection.JavaConversions.asIterator
 
-import org.apache.avro.Schema
 import org.apache.avro.file.{DataFileWriter, DataFileStream}
-import org.apache.avro.generic.GenericData
+import org.apache.avro.generic.GenericArray
 import org.apache.avro.specific.{SpecificDatumWriter, SpecificDatumReader}
 
 /**
  * A generation that has been persisted to disk.
  */
 object PersistedGen {
-    // constants
+    // for persisting the generation in file metadata
     val GENERATION_KEY = "generation"
+
+    // handle for a PersistedGen
+    type Descriptor = String
 }
 
-class PersistedGen(generation: Long, filename: String) {
+class PersistedGen(generation: Long, descriptor: Descriptor) {
     /**
      * Get the first Chunk less than or equal to the given path.
      * TODO: mostly useless
      */
-    def chunk(path: List[Value]): Option[(Chunk,Chunk)]= {
-        // build a Path object to compare chunks against
-        val patho = pathObject(path)
-
+    def chunk(path: Path): Option[(Range,GenericArray[Edge])]= {
         val rchunk = new Chunk
         val echunk = new Chunk
-        val stream = new DataFileStream(new FileInputStream(filename), new SpecificDatumReader[Chunk])
-        try {
-            while (stream.hasNext) {
-                // chunks always come in pairs of 'range' and 'edge'
-                stream.next(rchunk)
-                stream.next(echunk)
-                // if this chunk is <= our path, accept it
-                if (patho.compareTo(rchunk.range.begin) >= 0)
-                    return Some((rchunk, echunk))
-            }
+        val stream = new DataFileStream(new FileInputStream(descriptor), new SpecificDatumReader[Chunk])
+        try while (stream.hasNext) {
+            // chunks always come in pairs of 'range' and 'edge'
+            stream.next(rchunk)
+            stream.next(echunk)
+            // if this chunk is <= our path, accept it
+            if (path.compareTo(rchunk.value.asInstanceOf[Range].begin) >= 0)
+                return Some((rchunk.value.asInstanceOf[Range], echunk.value.asInstanceOf[GenericArray[Edge]]))
         } finally {
             stream.close
         }
         None
     }
 
-    /**
-     * Creates a Path object from a list of values.
-     */
-    def pathObject(values: List[Value]): Path = {
-        if (values.size % 2 == 0) throw new IllegalArgumentException("Invalid path")
-        val edgecount = (values.size - 1) / 2
-
-        val path = new Path
-        path.source = new Vertex; path.source.name = values.head
-        path.edges = new GenericData.Array[Edge](edgecount, Schema.createArray(Edge.SCHEMA$))
-        for (List(label, name) <- values.tail.sliding(2)) {
-            val edge = new Edge
-            edge.label = label
-            edge.vertex = new Vertex
-            edge.vertex.name = name
-            path.edges.add(edge)
-        }
-        path
-    }
-
     override def toString: String = {
-        "#<PersistedGen %s %s>".format(generation, filename)
+        "#<PersistedGen %s %s>".format(generation, descriptor)
     }
 }
 
-class PersistedGenWriter(generation: Long, filename: String) {
+/**
+ * Ranges and their edges should be appended to a PersistedGen in sorted order, and all Ranges must
+ * be non-interecting.
+ */
+class PersistedGenWriter(generation: Long, descriptor: Descriptor) {
+    // chunks to reuse for every append
+    val rangeChunk = new Chunk
+    val edgesChunk = new Chunk
+
     val writer = {
         val w = new DataFileWriter(new SpecificDatumWriter[Chunk])
         w.setMeta(PersistedGen.GENERATION_KEY, generation)
-        w.create(Chunk.SCHEMA$, new File(filename))
+        w.create(Chunk.SCHEMA$, new File(descriptor))
     }
 
-    def append(chunk: Chunk) = writer.append(chunk)
+    def append(range: Range, edges: GenericArray[Edge]) = {
+        assert(rangeChunk.value == null || rangeChunk.value.asInstanceOf[Range].compareTo(range) < 0,
+            "chunks must be appended in ascending order")
+
+        writer.append({rangeChunk.value = range; rangeChunk})
+        writer.append({edgesChunk.value = edges; edgesChunk})
+    }
+
     def close() = writer.close
 }

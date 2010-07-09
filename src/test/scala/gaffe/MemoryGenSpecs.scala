@@ -6,16 +6,8 @@ import java.nio.ByteBuffer
 import org.scalatest.FlatSpec
 import org.scalatest.matchers.ShouldMatchers
 
-class MemoryGenSpecs extends FlatSpec with ShouldMatchers
+class MemoryGenSpecs extends FlatSpec with ShouldMatchers with SpecUtils
 {
-    def values(obs: Any*): List[Value] = {
-        for (ob <- obs) yield {
-            val value = new Value
-            value.value = ByteBuffer.wrap(ob.toString.getBytes)
-            value
-        }
-    }.toList
-
     "A MemoryGen" should "allow individual vertices to be added" in {
         val graph = new MemoryGen(0)
         val oldversion = graph.version

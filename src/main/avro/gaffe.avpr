@@ -3,9 +3,9 @@
   "doc": "Defines the types used to persist graphs.", 
   "types": [
     {"name": "Value", "type": "record",
-     "doc": "A untyped (for now) byte value.",
+     "doc": "A untyped (for now) byte value, with nulls sorting last.",
      "fields": [
-       {"name": "value", "type": "bytes"}
+       {"name": "value", "type": ["bytes", "null"]}
     ]},
     {"name": "Vertex", "type": "record",
      "doc": "A  vertex.",
@@ -33,7 +33,7 @@
     ]},
     {"name": "Range", "type": "record",
      "namespace": "gaffe.io",
-     "doc": "An ordered pair of Paths that share a prefix: 'end' is a replacement suffix for 'begin'.",
+     "doc": "An ordered pair of Paths that share a prefix: 'end' is a replacement suffix for 'begin'. The range is inclusive on begin, exclusive on end.",
      "fields": [
        {"name": "begin", "type": "gaffe.Path"},
        {"name": "end", "type": "gaffe.Path"}
@@ -42,8 +42,7 @@
      "namespace": "gaffe.io",
      "doc": "The largest unit in a gaffe data file. Chunks are always written as pairs, with a Range followed by an array of Edges. A 'range' Chunk describes the range of paths found in the following 'edge' chunk, and allows it to be skipped without deserialization.",
      "fields": [
-       {"name": "range", "type": ["Range", "null"]},
-       {"name": "edges", "type": {"type": "array", "items": "gaffe.Edge"}}
+       {"name": "value", "type": ["Range", {"type": "array", "items": "gaffe.Edge"}]}
     ]}
   ]
 }
