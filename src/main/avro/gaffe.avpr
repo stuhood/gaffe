@@ -43,6 +43,20 @@
      "doc": "The largest unit in a gaffe data file. Chunks are always written as pairs, with a Range followed by an array of Edges. A 'range' Chunk describes the range of paths found in the following 'edge' chunk, and allows it to be skipped without deserialization.",
      "fields": [
        {"name": "value", "type": ["Range", {"type": "array", "items": "gaffe.Edge"}]}
+    ]},
+    {"name": "ViewMetadata", "type": "record",
+     "namespace": "gaffe.io",
+     "doc": "The metadata describing a View, and the paths it stores.",
+     "fields": [
+       {"name": "generation", "type": "long"},
+       {"name": "id", "type": "long",
+        "doc": "Unique within a generation, independent from other generations."},
+       {"name": "depth", "type": "int",
+        "doc": "The depth of the paths stored in this View."},
+       {"name": "inverted", "type": "boolean",
+        "doc": "True if the View records inbound paths, rather than outbound."},
+       {"name": "partial", "type": "boolean",
+        "doc": "False if the View contains all vertices/edges for the generation."}
     ]}
   ]
 }
