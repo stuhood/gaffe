@@ -3,6 +3,7 @@ package gaffe
 
 import gaffe.io.Range
 import gaffe.PersistedGen._
+import gaffe.AvroUtils._
 
 import java.nio.ByteBuffer
 
@@ -11,7 +12,7 @@ import scala.util.Random
 import org.scalatest.FlatSpec
 import org.scalatest.matchers.ShouldMatchers
 
-class PersistedGenSpecs extends FlatSpec with ShouldMatchers with SpecUtils
+class PersistedGenSpecs extends FlatSpec with ShouldMatchers with Configuration
 {
     /**
      * Write a PersistedGen containing the given paths.
@@ -21,6 +22,7 @@ class PersistedGenSpecs extends FlatSpec with ShouldMatchers with SpecUtils
         val name = "%s/%s".format(config.getString("data_directory").get, new Random().nextLong.abs)
         val writer = new PersistedGenWriter(0, name)
         for (path <- paths) {
+            // TODO: should replace with 1. write MemoryGen, 2. flush to PersistedGen
             assert(path.edges.size == 1, "FIXME: assuming paths of length 1: " + path)
             val range = new Range
             range.begin = path

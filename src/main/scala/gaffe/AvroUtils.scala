@@ -9,11 +9,11 @@ import org.apache.avro.generic.GenericData
 import org.scalatest.FlatSpec
 import org.scalatest.matchers.ShouldMatchers
 
-/**
- * Test utility functions.
- */
-trait SpecUtils extends Configuration
+object AvroUtils
 {
+    /**
+     * Create a Value list from a seq of objects via toString.
+     */
     def values(obs: Any*): List[Value] = {
         for (ob <- obs) yield {
             val value = new Value
@@ -49,4 +49,4 @@ trait SpecUtils extends Configuration
         arr
     }
 }
-;
+

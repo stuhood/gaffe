@@ -1,12 +1,14 @@
 
 package gaffe
 
+import gaffe.AvroUtils._
+
 import java.nio.ByteBuffer
 
 import org.scalatest.FlatSpec
 import org.scalatest.matchers.ShouldMatchers
 
-class MemoryGenSpecs extends FlatSpec with ShouldMatchers with SpecUtils
+class MemoryGenSpecs extends FlatSpec with ShouldMatchers
 {
     "A MemoryGen" should "allow individual vertices to be added" in {
         val graph = new MemoryGen(0)
