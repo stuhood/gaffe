@@ -6,7 +6,7 @@ import java.nio.ByteBuffer
 
 import org.apache.avro.Schema
 import org.apache.avro.io.{BinaryDecoder, BinaryEncoder, DecoderFactory}
-import org.apache.avro.generic.GenericData
+import org.apache.avro.generic.{GenericArray, GenericData}
 import org.apache.avro.specific.{SpecificRecord, SpecificDatumWriter, SpecificDatumReader}
 
 import org.scalatest.FlatSpec
@@ -16,6 +16,14 @@ object AvroUtils
 {
     // unbuffered decoder factory
     private val DIRECT_DECODERS = new DecoderFactory().configureDirectDecoder(true)
+
+    // empty values sort first, null values sort last
+    val EVALUE = {val v = new Value; v.value = ByteBuffer.allocate(0); v}
+    val NVALUE = {val v = new Value; v.value = null; v}
+    val EVERTEX = {val v = new Vertex; v.name = EVALUE; v}
+    val NVERTEX = {val v = new Vertex; v.name = NVALUE; v}
+    val EEDGE = {val e = new Edge; e.label = EVALUE; e.vertex = EVERTEX; e}
+    val NEDGE = {val e = new Edge; e.label = NVALUE; e.vertex = NVERTEX; e}
 
     /**
      * Create a Value list from a seq of objects via toString.
@@ -36,7 +44,7 @@ object AvroUtils
         if (vals.size % 2 == 0) throw new IllegalArgumentException("Invalid path")
 
         val path = new Path
-        path.source = new Vertex; path.source.name = vals.head
+        path.vertex = new Vertex; path.vertex.name = vals.head
         path.edges = genarray[Edge](Edge.SCHEMA$,
             {for (List(label, name) <- vals.tail.sliding(2)) yield {
                 val edge = new Edge
@@ -48,8 +56,11 @@ object AvroUtils
         path
     }
 
-    def genarray[T](schema: Schema, values: T*): GenericData.Array[T] = {
-        val arr = new GenericData.Array[T](values.size, Schema.createArray(schema))
+    def genarray[T <: SpecificRecord](schema: Schema, size: Int): GenericArray[T] =
+        new GenericData.Array[T](size, Schema.createArray(schema))
+
+    def genarray[T <: SpecificRecord](schema: Schema, values: T*): GenericArray[T] = {
+        val arr = genarray[T](schema, values.size)
         for (value <- values)
             arr.add(value)
         arr

@@ -28,12 +28,12 @@
     {"name": "Path", "type": "record",
      "doc": "A vertex and list of edges defining a path.",
      "fields": [
-       {"name": "source", "type": "Vertex"},
+       {"name": "vertex", "type": "Vertex"},
        {"name": "edges", "type": {"type": "array", "items": "Edge"}}
     ]},
     {"name": "Range", "type": "record",
      "namespace": "gaffe.io",
-     "doc": "An ordered pair of Paths that share a prefix: 'end' is a replacement suffix for 'begin'. The range is inclusive on begin, exclusive on end.",
+     "doc": "An ordered pair of Paths that share a prefix: 'end' is a replacement suffix for 'begin'. The range is inclusive on begin, exclusive on end. FIXME: Needs optimization.",
      "fields": [
        {"name": "begin", "type": "gaffe.Path"},
        {"name": "end", "type": "gaffe.Path"}

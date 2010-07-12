@@ -4,7 +4,6 @@ package gaffe
 import gaffe.AvroUtils._
 import gaffe.io.{Chunk, Range, ViewMetadata}
 import gaffe.View._
-import gaffe.PersistedGen.{Descriptor => GenDescriptor}
 
 import java.io.File
 
@@ -37,12 +36,12 @@ object View {
         meta
     }
 
-    case class Descriptor(id: Long, gen: GenDescriptor) {
+    case class Descriptor(id: Long, gen: PersistedGen.Descriptor) {
         /**
          * Calculate the filename for a View component.
          */
         def filename(component: String): File = {
-            val name = "gen-%d-view-%s-%d.gaffe".format(gen.generation, component, id)
+            val name = "gen-%d-view-%d-%s.gaffe".format(gen.generation, id, component)
             new File(gen.directory, name)
         }
     }
@@ -64,9 +63,6 @@ object View {
         }
 
         def append(range: Range, edges: GenericArray[Edge]) = {
-            assert(rangeChunk.value == null || rangeChunk.value.asInstanceOf[Range].compareTo(range) < 0,
-                "chunks must be appended in ascending order")
-
             writer.append({rangeChunk.value = range; rangeChunk})
             writer.append({edgesChunk.value = edges; edgesChunk})
         }

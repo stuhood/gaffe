@@ -1,9 +1,9 @@
 
 package gaffe
 
+import gaffe.AvroUtils._
 import gaffe.io.Range
 import gaffe.PersistedGen._
-import gaffe.AvroUtils._
 
 import java.io.File
 import java.nio.ByteBuffer
@@ -16,39 +16,37 @@ import org.scalatest.matchers.ShouldMatchers
 class PersistedGenSpecs extends FlatSpec with ShouldMatchers with Configuration
 {
     /**
-     * Write a PersistedGen with a single View containing the given paths.
-     * TODO: dumb in multiple ways
+     * Write a PersistedGen containing the given paths.
      */
-    def write(paths: List[Path]): PersistedGen = {
-        val dir = new File(config.getString("data_directory").get)
+    def write(paths: List[List[Value]]): PersistedGen = {
         val gen = new Random().nextLong.abs
-        val id = 0
-        val desc = View.Descriptor(id, PersistedGen.Descriptor(gen, dir))
-        val meta = View.metadata(gen, id, 1, false, false)
-        val writer = new View.Writer(desc, meta)
+        // store paths in a MemoryGen
+        val memgen = new MemoryGen(gen)
         for (path <- paths) {
-            // TODO: should replace with 1. write MemoryGen, 2. flush to PersistedGen
-            assert(path.edges.size == 1, "FIXME: assuming paths of length 1: " + path)
-            val range = new Range
-            range.begin = path
-            range.end = mkpath(null)
-            val edges = genarray(Edge.SCHEMA$, path.edges.iterator.next)
-
-            writer.append(range, edges)
+            assert(path.size == 3, "FIXME: assuming paths of length 1: " + path)
+            memgen.add(path)
         }
-        writer.close
-        // open for reading
-        new PersistedGen(desc.gen, new View(desc)::Nil)
+        // write as a PersistedGen
+        val dir = new File(config.getString("data_directory").get)
+        val desc = PersistedGen.Descriptor(gen, dir)
+        val metas = View.metadata(gen, 0, 1, false, false) ::
+            View.metadata(gen, 1, 1, true, false) :: Nil
+        new PersistedGen.Writer(desc, metas).write(memgen)
     }
 
     "A PersistedGen" should "be happy to be empty" in {
         val reader = write(List())
-        reader.views.head.chunk(mkpath("blah", "blah", "blah")) should equal (None)
+        // check that all views are empty
+        for (view <- reader.views)
+            view.chunk(mkpath("blah")) should equal (None)
     }
 
     it should "not mind containing a few chunks either" in {
-        val reader = write(List(mkpath("pelican", "eats", "trout")))
-        reader.views.head.chunk(mkpath("pelican", "eats", "trout")) should not equal (None)
+        val reader = write(List(values("pelican", "eats", "trout")))
+        val outbound = reader.viewsFor(inverted = false).head
+        outbound.chunk(mkpath("pelican", "eats", "trout")) should not equal (None)
+        val inbound = reader.viewsFor(inverted = false).head
+        inbound.chunk(mkpath("trout", "eats", "pelican")) should not equal (None)
     }
 }
 
