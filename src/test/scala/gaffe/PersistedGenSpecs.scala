@@ -25,7 +25,7 @@ class PersistedGenSpecs extends FlatSpec with ShouldMatchers with Configuration
         val id = 0
         val desc = View.Descriptor(id, PersistedGen.Descriptor(gen, dir))
         val meta = View.metadata(gen, id, 1, false, false)
-        val writer = new ViewWriter(desc, meta)
+        val writer = new View.Writer(desc, meta)
         for (path <- paths) {
             // TODO: should replace with 1. write MemoryGen, 2. flush to PersistedGen
             assert(path.edges.size == 1, "FIXME: assuming paths of length 1: " + path)

@@ -46,6 +46,33 @@ object View {
             new File(gen.directory, name)
         }
     }
+
+    /**
+     * Ranges and their edges are appended to a view in sorted order, and all Ranges
+     * must be non-interecting.
+     */
+    class Writer(desc: Descriptor, meta: ViewMetadata) {
+        // chunks to reuse for every append
+        val rangeChunk = new Chunk
+        val edgesChunk = new Chunk
+
+        val writer = {
+            val w = new DataFileWriter(new SpecificDatumWriter[Chunk])
+            w.setMeta(VIEW_META_SCHEMA_KEY, meta.getSchema().toString)
+            w.setMeta(VIEW_META_KEY, serialize(meta))
+            w.create(Chunk.SCHEMA$, desc.filename("data"))
+        }
+
+        def append(range: Range, edges: GenericArray[Edge]) = {
+            assert(rangeChunk.value == null || rangeChunk.value.asInstanceOf[Range].compareTo(range) < 0,
+                "chunks must be appended in ascending order")
+
+            writer.append({rangeChunk.value = range; rangeChunk})
+            writer.append({edgesChunk.value = edges; edgesChunk})
+        }
+
+        def close() = writer.close
+    }
 }
 
 class View(desc: Descriptor) {
@@ -89,29 +116,3 @@ class View(desc: Descriptor) {
     }
 }
 
-/**
- * Ranges and their edges are appended to a view in sorted order, and all Ranges must
- * be non-interecting.
- */
-class ViewWriter(desc: Descriptor, meta: ViewMetadata) {
-    // chunks to reuse for every append
-    val rangeChunk = new Chunk
-    val edgesChunk = new Chunk
-
-    val writer = {
-        val w = new DataFileWriter(new SpecificDatumWriter[Chunk])
-        w.setMeta(VIEW_META_SCHEMA_KEY, meta.getSchema().toString)
-        w.setMeta(VIEW_META_KEY, serialize(meta))
-        w.create(Chunk.SCHEMA$, desc.filename("data"))
-    }
-
-    def append(range: Range, edges: GenericArray[Edge]) = {
-        assert(rangeChunk.value == null || rangeChunk.value.asInstanceOf[Range].compareTo(range) < 0,
-            "chunks must be appended in ascending order")
-
-        writer.append({rangeChunk.value = range; rangeChunk})
-        writer.append({edgesChunk.value = edges; edgesChunk})
-    }
-
-    def close() = writer.close
-}
