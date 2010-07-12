@@ -25,10 +25,10 @@ class MemoryGen(generation: Long) {
             val dest = canonicalize(pair(1))
 
             // outbound
-            val out = new Edge; out.label = edge; out.vertex = dest.vertex
+            val out = new Edge; out.label = edge; out.vertex = dest
             source.outs.put(out.label, out)
             // inbound
-            val in = new Edge; in.label = edge; in.vertex = source.vertex
+            val in = new Edge; in.label = edge; in.vertex = source
             dest.ins.put(in.label, in)
 
             source = dest
@@ -48,10 +48,10 @@ class MemoryGen(generation: Long) {
             val edge = src.outs.get(edgev)
             val dest = vertices.get(destv)
             // recurse
-            src.vertex.name :: edge.label :: get(destv :: xs)
+            src.name :: edge.label :: get(destv :: xs)
         case vertex :: Nil =>
             // tail of the path
-            List(vertices.get(vertex).vertex.name)
+            List(vertices.get(vertex).name)
         case _ =>
             throw new IllegalArgumentException("value list must represent alternating vertices and edges")
     }
@@ -67,10 +67,10 @@ class MemoryGen(generation: Long) {
     private def canonicalize(value: Value): Adjacencies = vertices.get(value) match {
         case null =>
             // place it in the graph
-            val adjacencies = new Adjacencies(new Vertex, new TreeMap, new TreeMap)
-            adjacencies.vertex.name = value
-            adjacencies.vertex.gen = -1
-            adjacencies.vertex.block = -1
+            val adjacencies = new Adjacencies(new TreeMap, new TreeMap)
+            adjacencies.name = value
+            adjacencies.gen = -1
+            adjacencies.block = -1
             vertices.put(value, adjacencies)
             adjacencies
         case x => x
@@ -81,6 +81,6 @@ class MemoryGen(generation: Long) {
     }
 
     // adds adjacency lists to a Vertex
-    final class Adjacencies(val vertex: Vertex, val ins: TreeMap[Value, Edge], val outs: TreeMap[Value, Edge])
+    final class Adjacencies(val ins: TreeMap[Value, Edge], val outs: TreeMap[Value, Edge]) extends Vertex
 }
 

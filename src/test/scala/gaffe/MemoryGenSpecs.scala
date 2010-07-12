@@ -52,7 +52,7 @@ class MemoryGenSpecs extends FlatSpec with ShouldMatchers
         graph.add(values("banana", "tastes", "edgy"))
         
         for (adjacencies <- graph.iterator) yield {
-            adjacencies.vertex.name
+            adjacencies.name
         } should be === (values("apple", "banana", "edgy", "sweet"))
     }
 }
