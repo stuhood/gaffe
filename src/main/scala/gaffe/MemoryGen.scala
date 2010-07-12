@@ -57,6 +57,11 @@ class MemoryGen(generation: Long) {
     }
 
     /**
+     * Returns an iterator over graph Adjacencies in sorted order.
+     */
+    def iterator(): Iterator[Adjacencies] = vertices.values().iterator
+
+    /**
      * Adds a value to the given vertices, and returns the canonical version of the vertex and its adjacencies.
      */
     private def canonicalize(value: Value): Adjacencies = vertices.get(value) match {

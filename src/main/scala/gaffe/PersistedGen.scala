@@ -15,13 +15,14 @@ import org.apache.avro.specific.{SpecificDatumWriter, SpecificDatumReader}
 /**
  * A generation that has been persisted to disk as one or more 'Views' of the same base data.
  */
+object PersistedGen {
+    // handle for a PersistedGen
+    case class Descriptor(generation: Long, directory: File)
+}
+
 class PersistedGen(descriptor: Descriptor, val views: List[View]) {
     override def toString: String = {
         "#<PersistedGen %s %s>".format(descriptor, views)
     }
 }
 
-object PersistedGen {
-    // handle for a PersistedGen
-    case class Descriptor(generation: Long, directory: File)
-}

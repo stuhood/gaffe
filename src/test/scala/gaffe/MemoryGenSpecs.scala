@@ -45,5 +45,15 @@ class MemoryGenSpecs extends FlatSpec with ShouldMatchers
         
         evaluating {graph.get(values("not there"))} should produce [RuntimeException]
     }
+
+    it should "support ordered iteration" in {
+        val graph = new MemoryGen(0)
+        graph.add(values("apple", "tastes", "sweet"))
+        graph.add(values("banana", "tastes", "edgy"))
+        
+        for (adjacencies <- graph.iterator) yield {
+            adjacencies.vertex.name
+        } should be === (values("apple", "banana", "edgy", "sweet"))
+    }
 }
 
