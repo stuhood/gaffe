@@ -18,7 +18,7 @@ class PersistedGenSpecs extends FlatSpec with ShouldMatchers with Configuration
     /**
      * Write a PersistedGen containing the given paths.
      */
-    def write(paths: List[List[Value]]): PersistedGen = {
+    def write(paths: Seq[List[Value]]): PersistedGen = {
         val gen = new Random().nextLong.abs
         // store paths in a MemoryGen
         val memgen = new MemoryGen(gen)
@@ -26,12 +26,21 @@ class PersistedGenSpecs extends FlatSpec with ShouldMatchers with Configuration
             assert(path.size == 3, "FIXME: assuming paths of length 1: " + path)
             memgen.add(path)
         }
+        write(memgen)
+    }
+
+    def write(memgen: MemoryGen): PersistedGen = {
         // write as a PersistedGen
-        val dir = new File(config.getString("data_directory").get)
-        val desc = PersistedGen.Descriptor(gen, dir)
-        val metas = View.metadata(gen, 0, 1, false, false) ::
-            View.metadata(gen, 1, 1, true, false) :: Nil
-        new PersistedGen.Writer(desc, metas).write(memgen)
+        val start = System.currentTimeMillis
+        try {
+            val gen = memgen.generation
+            val dir = new File(config.getString("data_directory").get)
+            val desc = PersistedGen.Descriptor(gen, dir)
+            val metas = View.metadata(gen, 0, 1, false, false) ::
+                View.metadata(gen, 1, 1, true, false) :: Nil
+            return new PersistedGen.Writer(desc, metas).write(memgen)
+        } finally
+            println("Took: " + (System.currentTimeMillis - start))
     }
 
     "A PersistedGen" should "be happy to be empty" in {

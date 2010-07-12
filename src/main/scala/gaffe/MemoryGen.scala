@@ -5,7 +5,7 @@ import java.util.TreeMap
 
 import scala.collection.JavaConversions.asIterator
 
-class MemoryGen(generation: Long) {
+class MemoryGen(val generation: Long) {
     var version: Long = 0
     private val vertices: TreeMap[Value,Adjacencies] = new TreeMap
 
