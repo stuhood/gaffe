@@ -31,16 +31,12 @@ class PersistedGenSpecs extends FlatSpec with ShouldMatchers with Configuration
 
     def write(memgen: MemoryGen): PersistedGen = {
         // write as a PersistedGen
-        val start = System.currentTimeMillis
-        try {
-            val gen = memgen.generation
-            val dir = new File(config.getString("data_directory").get)
-            val desc = PersistedGen.Descriptor(gen, dir)
-            val metas = View.metadata(gen, 0, 1, false, false) ::
-                View.metadata(gen, 1, 1, true, false) :: Nil
-            return new PersistedGen.Writer(desc, metas).write(memgen)
-        } finally
-            println("Took: " + (System.currentTimeMillis - start))
+        val gen = memgen.generation
+        val dir = new File(config.getString("data_directory").get)
+        val desc = PersistedGen.Descriptor(gen, dir)
+        val metas = View.metadata(gen, 0, 1, false, false) ::
+            View.metadata(gen, 1, 1, true, false) :: Nil
+        new PersistedGen.Writer(desc, metas).write(memgen)
     }
 
     "A PersistedGen" should "be happy to be empty" in {

@@ -10,7 +10,7 @@ class MemoryGen(val generation: Long) {
     private val vertices: TreeMap[Value,Adjacencies] = new TreeMap
 
     /**
-     * Assumes that the given odd numbered list of Values represents alternating Vertices and Edges, and adds is as a path in the graph.
+     * Assumes that the given odd numbered list of Values represents alternating Vertices and Edges, and adds it as a path in the graph.
      */
     def add(path: List[Value]): Unit = {
         if (path.size % 2 == 0)
@@ -26,10 +26,10 @@ class MemoryGen(val generation: Long) {
 
             // outbound
             val out = new Edge; out.label = edge; out.vertex = dest
-            source.outs.put(out.label, out)
+            source.outs.put(new SimpleEdge(out.label, out.vertex.name), out)
             // inbound
             val in = new Edge; in.label = edge; in.vertex = source
-            dest.ins.put(in.label, in)
+            dest.ins.put(new SimpleEdge(in.vertex.name, in.label), in)
 
             source = dest
         }
@@ -45,8 +45,7 @@ class MemoryGen(val generation: Long) {
         case srcv :: edgev :: destv :: xs =>
             // triple of src, edge, dest
             val src = vertices.get(srcv)
-            val edge = src.outs.get(edgev)
-            val dest = vertices.get(destv)
+            val edge = src.outs.get(new SimpleEdge(edgev, destv))
             // recurse
             src.name :: edge.label :: get(destv :: xs)
         case vertex :: Nil =>
@@ -81,6 +80,16 @@ class MemoryGen(val generation: Long) {
     }
 
     // adds adjacency lists to a Vertex
-    final class Adjacencies(val ins: TreeMap[Value, Edge], val outs: TreeMap[Value, Edge]) extends Vertex
+    final class Adjacencies(val ins: TreeMap[SimpleEdge, Edge], val outs: TreeMap[SimpleEdge, Edge]) extends Vertex
+
+    // the vertex may use either position, depending on whether this is an inbound or outbound edge
+    final class SimpleEdge(_1: Value, _2: Value) extends Tuple2(_1, _2)
+        with Comparable[SimpleEdge] {
+        override def compareTo(that: SimpleEdge): Int = {
+            if (this == that) return 0
+            val c = _1.compareTo(that._1)
+            return if (c != 0) c else _2.compareTo(that._2)
+        }
+    }
 }
 
