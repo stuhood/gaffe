@@ -28,22 +28,22 @@ class MemoryGenSpecs extends FlatSpec with ShouldMatchers
         val graph = new MemoryGen(0)
         graph.add(values("src", "edge", "dest"))
         
-        graph.get(values("src")) should be === (values("src"))
-        graph.get(values("dest")) should be === (values("dest"))
+        graph.get(Query(values("src"))) should be === (Some(values("src")))
+        graph.get(Query(values("dest"))) should be === (Some(values("dest")))
     }
 
     it should "allow exact matches for a path" in {
         val graph = new MemoryGen(0)
         graph.add(values("src", "edge", "dest"))
         
-        graph.get(values("src", "edge", "dest")) should be === (values("src", "edge", "dest"))
+        graph.get(Query(values("src", "edge", "dest"))) should be === (Some(values("src", "edge", "dest")))
     }
 
     it should "fail to match a missing vertex" in {
         val graph = new MemoryGen(0)
         graph.add(values("src", "edge", "dest"))
         
-        evaluating {graph.get(values("not there"))} should produce [RuntimeException]
+        graph.get(Query(values("not there"))) should be === (None)
     }
 
     it should "support ordered iteration" in {
