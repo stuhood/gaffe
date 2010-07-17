@@ -2,7 +2,7 @@
 package gaffe
 
 import gaffe.AvroUtils._
-import gaffe.io.{Chunk, Range, ViewMetadata}
+import gaffe.io._
 import gaffe.View._
 
 import java.io.File

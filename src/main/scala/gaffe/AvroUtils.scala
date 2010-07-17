@@ -1,6 +1,8 @@
 
 package gaffe
 
+import gaffe.io._
+
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 
@@ -54,6 +56,23 @@ object AvroUtils
                 edge
             }}.toSeq: _*)
         path
+    }
+
+    /**
+     * Reuses the given GenericArray and object content.
+     */
+    def reuseArray[I,C](obs: Iterable[I], array: GenericArray[C], create: I => C, reuse: (C, I) => Unit): Unit = {
+        array.clear
+        val obsiter = obs.iterator
+        val arrayiter = array.iterator
+
+        // reuse as many objects as already exist in the array
+        while (obsiter.hasNext && arrayiter.hasNext)
+            reuse(arrayiter.next, obsiter.next)
+
+        // and expand for the remainder
+        while (obsiter.hasNext)
+            array.add(create(obsiter.next))
     }
 
     def genarray[T <: SpecificRecord](schema: Schema, size: Int): GenericArray[T] =

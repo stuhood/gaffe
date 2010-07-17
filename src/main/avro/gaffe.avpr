@@ -8,24 +8,27 @@
        {"name": "value", "type": ["bytes", "null"]}
     ]},
     {"name": "Vertex", "type": "record",
+     "namespace": "gaffe.io",
      "doc": "A  vertex.",
      "fields": [
-       {"name": "name", "type": "Value"},
+       {"name": "name", "type": "gaffe.Value"},
        {"name": "gen", "type": "long",
         "doc": "The generation number/file containing the vertex, or -1 for the current generation."},
        {"name": "block", "type": "long",
         "doc": "The block number containing the vertex within the generation, or -1 if unknown."}
     ]},
     {"name": "Edge", "type": "record",
+     "namespace": "gaffe.io",
      "doc": "An in or outbound edge from the given vertex.",
      "fields": [
-       {"name": "label", "type": "Value",
+       {"name": "label", "type": "gaffe.Value",
         "doc": "Rather than a name, edges have a label, which makes the identity of an edge a triple of (src.name, label, dest.name)."},
        {"name": "vertex", "type": "Vertex"},
        {"name": "warmth", "type": "long",
         "doc": "Represents the relative number of times the edge has been traversed."}
     ]},
     {"name": "Path", "type": "record",
+     "namespace": "gaffe.io",
      "doc": "A vertex and list of edges defining a path.",
      "fields": [
        {"name": "vertex", "type": "Vertex"},
@@ -35,14 +38,14 @@
      "namespace": "gaffe.io",
      "doc": "An ordered pair of Paths that share a prefix: 'end' is a replacement suffix for 'begin'. The range is inclusive on begin, exclusive on end. FIXME: Needs optimization.",
      "fields": [
-       {"name": "begin", "type": "gaffe.Path"},
-       {"name": "end", "type": "gaffe.Path"}
+       {"name": "begin", "type": "Path"},
+       {"name": "end", "type": "Path"}
     ]},
     {"name": "Chunk", "type": "record",
      "namespace": "gaffe.io",
      "doc": "The largest unit in a gaffe data file. Chunks are always written as pairs, with a Range followed by an array of Edges. A 'range' Chunk describes the range of paths found in the following 'edge' chunk, and allows it to be skipped without deserialization.",
      "fields": [
-       {"name": "value", "type": ["Range", {"type": "array", "items": "gaffe.Edge"}]}
+       {"name": "value", "type": ["Range", {"type": "array", "items": "Edge"}]}
     ]},
     {"name": "ViewMetadata", "type": "record",
      "namespace": "gaffe.io",

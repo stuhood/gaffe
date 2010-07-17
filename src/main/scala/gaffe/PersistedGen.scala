@@ -2,10 +2,10 @@
 package gaffe
 
 import gaffe.AvroUtils._
-import gaffe.io.{Range, ViewMetadata}
+import gaffe.io._
 import gaffe.PersistedGen._
 
-import scala.collection.JavaConversions.asIterator
+import scala.collection.JavaConversions.asIterable
 
 import java.io.File
 
@@ -18,6 +18,18 @@ object PersistedGen {
     // handle for a PersistedGen
     case class Descriptor(generation: Long, directory: File)
 
+    private def createEdge(edge: MemoryGen.Edge): Edge = {
+        val aedge = new Edge
+        reuseEdge(aedge, edge)
+        aedge
+    }
+
+    private def reuseEdge(aedge: Edge, edge: MemoryGen.Edge): Unit = {
+        aedge.label = edge.label
+        aedge.vertex = new Vertex
+        aedge.vertex.name = edge.vertex.name
+    }
+
     /**
      * Writes Views of a MemoryGen to disk as a PersistedGen.
      *
@@ -28,8 +40,10 @@ object PersistedGen {
         def write(generation: MemoryGen): PersistedGen = {
             // reusable persistence objects
             val range = new Range; range.begin = new Path; range.end = new Path
+            range.begin.vertex = new Vertex
             range.begin.edges = genarray(Edge.SCHEMA$, 1): GenericArray[Edge]
             range.begin.edges.add(EEDGE)
+            range.end.vertex = new Vertex
             range.end.edges = genarray(Edge.SCHEMA$, 1): GenericArray[Edge]
             range.end.edges.add(NEDGE)
             val edges = genarray(Edge.SCHEMA$, 1024): GenericArray[Edge]
@@ -38,15 +52,14 @@ object PersistedGen {
             val views = {for ((meta, idx) <- metas.zipWithIndex) yield {
                 val viewdesc = View.Descriptor(idx, desc)
                 val writer = new View.Writer(viewdesc, meta)
-                try for (adjs <- generation.iterator) {
+                try for (vertex <- generation.iterator) {
                     // update range
-                    range.begin.vertex = adjs
-                    range.end.vertex = adjs
-                    // copy appropriate edges for this view
-                    edges.clear
-                    val adjedges = if (meta.inverted) adjs.ins else adjs.outs
-                    for (edge <- adjedges.values.iterator)
-                        edges.add(edge)
+                    range.begin.vertex.name = vertex.name
+                    range.end.vertex.name = vertex.name
+                    // copy appropriate edge values for this view
+                    val adjedges = if (meta.inverted) vertex.ins else vertex.outs
+                    val flatedges = for (outer <- adjedges.values; inner <- outer.values) yield inner
+                    reuseArray[MemoryGen.Edge,Edge](flatedges, edges, createEdge, reuseEdge)
                     // and append
                     writer.append(range, edges)
                 } finally writer.close

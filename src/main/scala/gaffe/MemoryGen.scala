@@ -1,13 +1,55 @@
 
 package gaffe
 
+import gaffe.MemoryGen._
+
 import java.util.TreeMap
 
 import scala.collection.JavaConversions.asIterator
 
+object MemoryGen {
+    // simple inbound/outbound edge class
+    final case class Edge(val label: Value, val vertex: Vertex)
+
+    // maps 'edgeval -> destval -> edge', or 'destval -> edgeval -> edge'
+    type AdjacencyList = TreeMap[Value, TreeMap[Value, Edge]]
+
+    // a Vertex with adjacency lists
+    final case class Vertex(val name: Value, val ins: AdjacencyList, val outs: AdjacencyList) {
+        def this(name: Value) = this(name, new AdjacencyList, new AdjacencyList)
+
+        // temporary
+        def getOut(label: Value, vertex: Value): Option[Edge] = outs.get(label) match {
+            case null => None
+            case innermap =>
+                innermap.get(vertex) match {
+                    case null => None
+                    case x => Some(x)
+                }
+        }
+
+        def addOut(label: Value, vertex: Vertex) =
+            add(outs, label, vertex.name, Edge(label, vertex))
+
+        def addIn(label: Value, vertex: Vertex) =
+            add(ins, vertex.name, label, Edge(label, vertex))
+        
+        private def add(edges: AdjacencyList, first: Value, second: Value, edge: Edge) = {
+            val innermap = edges.get(first) match {
+                case null =>
+                    val x = new TreeMap[Value, Edge]
+                    edges.put(first, x)
+                    x
+                case x => x
+            }
+            innermap.put(second, edge)
+        }
+    }
+}
+
 class MemoryGen(val generation: Long) {
     var version: Long = 0
-    private val vertices: TreeMap[Value,Adjacencies] = new TreeMap
+    private val vertices: TreeMap[Value,Vertex] = new TreeMap
 
     /**
      * Assumes that the given odd numbered list of Values represents alternating Vertices and Edges, and adds it as a path in the graph.
@@ -24,12 +66,9 @@ class MemoryGen(val generation: Long) {
             val edge = pair(0)
             val dest = canonicalize(pair(1))
 
-            // outbound
-            val out = new Edge; out.label = edge; out.vertex = dest
-            source.outs.put(new SimpleEdge(out.label, out.vertex.name), out)
-            // inbound
-            val in = new Edge; in.label = edge; in.vertex = source
-            dest.ins.put(new SimpleEdge(in.vertex.name, in.label), in)
+            // add edges
+            source.addOut(edge, dest)
+            dest.addIn(edge, source)
 
             source = dest
         }
@@ -51,7 +90,7 @@ class MemoryGen(val generation: Long) {
             // triple of src, edge, dest
             val src = vertices.get(srcv.value)
             if (src == null) return None
-            val edge = src.outs.get(new SimpleEdge(edgev.value, destv.value))
+            val edge = src.getOut(edgev.value, destv.value)
             if (edge == null) return None
             // append to the stack and recurse
             get(destv :: xs, edgev.value :: srcv.value :: stack)
@@ -66,40 +105,24 @@ class MemoryGen(val generation: Long) {
     }
 
     /**
-     * Returns an iterator over graph Adjacencies in sorted order.
+     * Returns an iterator over graph Vertex in sorted order.
      */
-    def iterator(): Iterator[Adjacencies] = vertices.values().iterator
+    def iterator(): Iterator[Vertex] = vertices.values().iterator
 
     /**
      * Adds a value to the given vertices, and returns the canonical version of the vertex and its adjacencies.
      */
-    private def canonicalize(value: Value): Adjacencies = vertices.get(value) match {
+    private def canonicalize(value: Value): Vertex = vertices.get(value) match {
         case null =>
             // place it in the graph
-            val adjacencies = new Adjacencies(new TreeMap, new TreeMap)
-            adjacencies.name = value
-            adjacencies.gen = -1
-            adjacencies.block = -1
-            vertices.put(value, adjacencies)
-            adjacencies
+            val vertex = new Vertex(value)
+            vertices.put(value, vertex)
+            vertex
         case x => x
     }
 
     override def toString: String = {
         "#<MemoryGen %d %s>".format(version, vertices.keySet)
-    }
-
-    // adds adjacency lists to a Vertex
-    final class Adjacencies(val ins: TreeMap[SimpleEdge, Edge], val outs: TreeMap[SimpleEdge, Edge]) extends Vertex
-
-    // the vertex may use either position, depending on whether this is an inbound or outbound edge
-    final class SimpleEdge(_1: Value, _2: Value) extends Tuple2(_1, _2)
-        with Comparable[SimpleEdge] {
-        override def compareTo(that: SimpleEdge): Int = {
-            if (this == that) return 0
-            val c = _1.compareTo(that._1)
-            return if (c != 0) c else _2.compareTo(that._2)
-        }
     }
 }
 
