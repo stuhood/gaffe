@@ -45,5 +45,36 @@ class MemoryGenSpecs extends FlatSpec with ShouldMatchers
             adjacencies.name
         } should be === (values("apple", "banana", "edgy", "sweet"))
     }
+
+    "A Query against a MemoryGen" should "support Identity clauses" in {
+        val graph = memgen(values("alpha", "1st", "term"),
+            values("beta", "2nd", "term"),
+            values("gaga", "3rd", "term"))
+        
+        graph.get(Query("beta", null, "term")) should be ===
+            (Stream(values("beta", "2nd", "term")))
+    }
+
+    it should "support Range clauses" in {
+        val graph = memgen(values("alpha", "1st", "term"),
+            values("beta", "2nd", "term"),
+            values("gaga", "3rd", "term"))
+        
+        graph.get(Query(("alpha", "gaga"), ("", null), "term")) should be ===
+            (Stream(values("alpha", "1st", "term"), values("beta", "2nd", "term")))
+        graph.get(Query(null, ("2nd", "3rd"), "term")) should be ===
+            (Stream(values("beta", "2nd", "term")))
+    }
+
+    it should "support List clauses" in {
+        val graph = memgen(values("alpha", "1st", "term"),
+            values("beta", "2nd", "term"),
+            values("gaga", "3rd", "term"))
+        
+        graph.get(Query(List("alpha", "gaga"), null, "term")) should be ===
+            (Stream(values("alpha", "1st", "term"), values("gaga", "3rd", "term")))
+        graph.get(Query(null, List("2nd"), "term")) should be ===
+            (Stream(values("beta", "2nd", "term")))
+    }
 }
 

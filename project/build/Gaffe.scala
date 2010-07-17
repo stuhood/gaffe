@@ -12,4 +12,7 @@ class Gaffe(info: ProjectInfo) extends DefaultProject(info) with avro.AvroCompil
 
     // clean up avro generated code on clean: default target "src/main/java"
     override def cleanAction = super.cleanAction dependsOn(cleanAvro)
+
+    // enable unchecked warnings
+    override def compileOptions = CompileOption("-unchecked") :: super.compileOptions.toList
 }

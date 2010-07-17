@@ -27,16 +27,15 @@ object AvroUtils
     val EEDGE = {val e = new Edge; e.label = EVALUE; e.vertex = EVERTEX; e}
     val NEDGE = {val e = new Edge; e.label = NVALUE; e.vertex = NVERTEX; e}
 
-    /**
-     * Create a Value list from a seq of objects via toString.
-     */
-    def values(obs: Any*): List[Value] = {
-        for (ob <- obs) yield {
-            val value = new Value
-            value.value = if (ob == null) null else ByteBuffer.wrap(ob.toString.getBytes)
-            value
-        }
-    }.toList
+    /** Create a Value from an object via toString. */
+    def value(ob: Any): Value = {
+        val value = new Value
+        value.value = if (ob == null) null else ByteBuffer.wrap(ob.toString.getBytes)
+        value
+    }
+
+    /** Create a Value list from a seq of objects via toString. */
+    def values(obs: Any*): List[Value] = obs.map(value).toList
 
     /**
      * Creates a Path object from a list of values.

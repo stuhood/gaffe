@@ -1,6 +1,7 @@
 
 package gaffe
 
+import gaffe.AvroUtils.{value, values}
 import gaffe.Query._
 
 import java.util.NavigableMap
@@ -12,10 +13,23 @@ import scala.collection.JavaConversions.asIterator
  * and unknown Values.
  */
 object Query {
-    /**
-     * Create a query for known values from a sequence of Avro Values.
-     */
-    def apply(values: List[Value]): Query = new Query(values.map(ExactValue(_)).toList)
+    /** Convenience constructor that stringifies each clauseval into a Clause based on type. */
+    def apply(clausevals: Any*): Query = {
+        val clauses = for (clause <- clausevals) yield clause match {
+            case null =>
+                Identity()
+            case (left, right) =>
+                Range(value(left), value(right))
+            case list: List[_] =>
+                ValueList(values(list: _*))
+            case exact =>
+                Exact(value(exact))
+        }
+        new Query(clauses.toList)
+    }
+
+    /** Create a query for known values from a sequence of Avro Values. */
+    def apply(values: List[Value]): Query = new Query(values.map(Exact(_)).toList)
 
     abstract class Clause() {
         def filter[T](values: NavigableMap[Value, T]): Stream[T]
@@ -28,7 +42,7 @@ object Query {
     }
 
     /** Matches a single known value */
-    case class ExactValue(value: Value) extends Clause {
+    case class Exact(value: Value) extends Clause {
         override def filter[T](values: NavigableMap[Value, T]): Stream[T] = {
             values.get(value) match {
                 case null => Stream.empty
@@ -59,7 +73,7 @@ object Query {
     }
 
     /** Matches any values falling between the given begin (inclusive) and end (exclusive) */
-    case class ValueRange(begin: Value, end: Value) extends Clause {
+    case class Range(begin: Value, end: Value) extends Clause {
         override def filter[T](values: NavigableMap[Value, T]): Stream[T] =
             values.subMap(begin, end).values.iterator.toStream
     }
