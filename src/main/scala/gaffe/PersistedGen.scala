@@ -49,7 +49,7 @@ object PersistedGen {
             val edges = genarray(Edge.SCHEMA$, 1024): GenericArray[Edge]
 
             // write each view
-            val views = {for ((meta, idx) <- metas.zipWithIndex) yield {
+            val views = for ((meta, idx) <- metas.zipWithIndex) yield {
                 val viewdesc = View.Descriptor(idx, desc)
                 val writer = new View.Writer(viewdesc, meta)
                 try for (vertex <- generation.iterator) {
@@ -63,10 +63,10 @@ object PersistedGen {
                     // and append
                     writer.append(range, edges)
                 } finally writer.close
-                new View(viewdesc)
-            }}.toList
+                new View(viewdesc, meta)
+            }
 
-            new PersistedGen(desc, views)
+            new PersistedGen(desc, views.toList)
         }
     }
 }

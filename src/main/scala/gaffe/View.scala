@@ -36,6 +36,16 @@ object View {
         meta
     }
 
+    def loadmetadata(desc: Descriptor): ViewMetadata = {
+        // deserialize metadata from the data component
+        val r = new DataFileReader(desc.filename("data"), new SpecificDatumReader[Chunk])
+        try {
+            val schema = Schema.parse(r.getMetaString(VIEW_META_SCHEMA_KEY))
+            deserialize(schema, r.getMeta(VIEW_META_KEY))
+        } finally
+            r.close
+    }
+
     case class Descriptor(id: Long, gen: PersistedGen.Descriptor) {
         /**
          * Calculate the filename for a View component.
@@ -57,6 +67,7 @@ object View {
 
         val writer = {
             val w = new DataFileWriter(new SpecificDatumWriter[Chunk])
+            w.setCodec(Configuration().default_codec)
             w.setMeta(VIEW_META_SCHEMA_KEY, meta.getSchema().toString)
             w.setMeta(VIEW_META_KEY, serialize(meta))
             w.create(Chunk.SCHEMA$, desc.filename("data"))
@@ -71,20 +82,11 @@ object View {
     }
 }
 
-class View(desc: Descriptor) {
+class View(desc: Descriptor, val meta: ViewMetadata) {
+    def this(desc: Descriptor) = this(desc, loadmetadata(desc))
+
     // reusable state
     val dreader = new SpecificDatumReader[Chunk]
-
-    // metadata
-    val meta: ViewMetadata = {
-        // deserialize metadata from the data component
-        val r = new DataFileReader(desc.filename("data"), dreader)
-        try {
-            val schema = Schema.parse(r.getMetaString(VIEW_META_SCHEMA_KEY))
-            deserialize(schema, r.getMeta(VIEW_META_KEY))
-        } finally
-            r.close
-    }
 
     /**
      * Get the first Chunk less than or equal to the given path.

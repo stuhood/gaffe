@@ -13,7 +13,7 @@ import scala.util.Random
 import org.scalatest.FlatSpec
 import org.scalatest.matchers.ShouldMatchers
 
-class PersistedGenSpecs extends FlatSpec with ShouldMatchers with Configuration
+class PersistedGenSpecs extends FlatSpec with ShouldMatchers
 {
     /**
      * Write a PersistedGen containing the given paths.
@@ -32,8 +32,7 @@ class PersistedGenSpecs extends FlatSpec with ShouldMatchers with Configuration
     def write(memgen: MemoryGen): PersistedGen = {
         // write as a PersistedGen
         val gen = memgen.generation
-        val dir = new File(config.getString("data_directory").get)
-        val desc = PersistedGen.Descriptor(gen, dir)
+        val desc = PersistedGen.Descriptor(gen, Configuration().data_directory)
         val metas = View.metadata(gen, 0, 1, false, false) ::
             View.metadata(gen, 1, 1, true, false) :: Nil
         new PersistedGen.Writer(desc, metas).write(memgen)
