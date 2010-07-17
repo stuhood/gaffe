@@ -8,12 +8,6 @@ import java.util.TreeMap
 import scala.collection.JavaConversions.asIterator
 
 object MemoryGen {
-    // simple inbound/outbound edge class
-    final case class Edge(val label: Value, val vertex: Vertex)
-
-    // maps 'edgeval -> destval -> edge', or 'destval -> edgeval -> edge'
-    type AdjacencyList = TreeMap[Value, TreeMap[Value, Edge]]
-
     // a Vertex with adjacency lists
     final case class Vertex(val name: Value, val ins: AdjacencyList, val outs: AdjacencyList) {
         def this(name: Value) = this(name, new AdjacencyList, new AdjacencyList)
@@ -45,6 +39,12 @@ object MemoryGen {
             innermap.put(second, edge)
         }
     }
+
+    // simple inbound/outbound edge class
+    final case class Edge(val label: Value, val vertex: Vertex)
+
+    // maps 'edgeval -> destval -> edge', or 'destval -> edgeval -> edge'
+    type AdjacencyList = TreeMap[Value, TreeMap[Value, Edge]]
 }
 
 class MemoryGen(val generation: Long) {
@@ -76,36 +76,41 @@ class MemoryGen(val generation: Long) {
     }
 
     /**
-     * Returns a seq of paths matching the given odd numbered list of Values (representing alternating
-     * Vertices and Edges).
+     * Returns a Stream of paths matching the given odd numbered list of Values (representing
+     * alternating Vertices and Edges).
      */
-    def get(query: Query): Option[List[Value]] = get(query.path, Nil)
+    def get(query: Query): Stream[List[Value]] = query.path match {
+        case srcq :: xs =>
+            // recurse for each matching intial vertex, and flatten the results
+            srcq.filter(vertices).flatMap(vertex => getEdges(vertex.outs, xs, vertex.name :: Nil)).take(query.limit)
+        case Nil =>
+            throw new IllegalArgumentException("query must contain at least one value")
+    }
 
     /**
-     * Takes a query portion, and a stack representing the currently matched path. This method
-     * will recurse to find the remainder of the query portion, returning matched paths.
+     * Having matched an edge type, query for (edge,dest) pairs in 'within'.
      */
-    private def get(query: List[Query.KnownValue], stack: List[Value]): Option[List[Value]] = query match {
-        case srcv :: edgev :: destv :: xs =>
-            // triple of src, edge, dest
-            val src = vertices.get(srcv.value)
-            if (src == null) return None
-            val edge = src.getOut(edgev.value, destv.value)
-            if (edge == null) return None
-            // append to the stack and recurse
-            get(destv :: xs, edgev.value :: srcv.value :: stack)
-        case destv :: Nil =>
-            // tail of the path
-            val dest = vertices.get(destv.value)
-            if (dest == null) return None
-            // append dest and return
-            Some((destv.value :: stack).reverse)
-        case _ =>
+    private def getDests(within: TreeMap[Value,Edge], query: List[Query.Clause], stack: List[Value]): Stream[List[Value]] = query match {
+        case destq :: xs =>
+            destq.filter(within).flatMap(edge => getEdges(edge.vertex.outs, xs, edge.vertex.name :: edge.label :: stack))
+        case Nil =>
             throw new IllegalArgumentException("value list must represent alternating vertices and edges")
     }
 
     /**
-     * Returns an iterator over graph Vertex in sorted order.
+     * Positioned to query for edges in 'within'.
+     */
+    private def getEdges(within: AdjacencyList, query: List[Query.Clause], stack: List[Value]): Stream[List[Value]] = query match {
+        case edgeq :: xs =>
+            // recurse for matching edges
+            edgeq.filter(within).flatMap(edges => getDests(edges, xs, stack))
+        case Nil =>
+            // previous vertex was the last in a path: return it
+            Stream(stack.reverse)
+    }
+
+    /**
+     * Returns an iterator over graph vertices in sorted order.
      */
     def iterator(): Iterator[Vertex] = vertices.values().iterator
 

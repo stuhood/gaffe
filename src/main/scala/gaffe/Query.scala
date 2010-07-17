@@ -2,30 +2,68 @@
 package gaffe
 
 import gaffe.Query._
-import gaffe.{Value => AvroV}
+
+import java.util.NavigableMap
+
+import scala.collection.JavaConversions.asIterator
 
 /**
  * A structural query, which is itself a graph represented by a path containing known
  * and unknown Values.
- *
- * TODO: currently only supports queries containing KnownValues.
  */
-class Query(val path: List[KnownValue], val limit: Int = 1000)
-
 object Query {
-
     /**
-     * Create a query for known values from a sequence of objects via toString.
+     * Create a query for known values from a sequence of Avro Values.
      */
-    def apply(values: List[AvroV]): Query =
-        new Query(values.map(KnownValue(_)).toList)
+    def apply(values: List[Value]): Query = new Query(values.map(ExactValue(_)).toList)
 
-    abstract class Value()
+    abstract class Clause() {
+        def filter[T](values: NavigableMap[Value, T]): Stream[T]
+    }
+
+    /** Matches all values */
+    case class Identity() extends Clause {
+        override def filter[T](values: NavigableMap[Value, T]): Stream[T] =
+            values.values.iterator.toStream
+    }
+
     /** Matches a single known value */
-    case class KnownValue(value: AvroV) extends Value
+    case class ExactValue(value: Value) extends Clause {
+        override def filter[T](values: NavigableMap[Value, T]): Stream[T] = {
+            values.get(value) match {
+                case null => Stream.empty
+                case x => Stream(x)
+            }
+        }
+    }
+
     /** Matches any of a list of values */
-    // case class ListValue(values: List[AvroV]) extends Value
+    case class ValueList(valuelist: List[Value]) extends Clause {
+        for (left :: right :: Nil <- valuelist.sliding(2, 1))
+            assert(left.compareTo(right) < 0, "unsorted value list: %s !< %s".format(left, right))
+
+        // TODO: should use alternative implementations based on relative size
+        override def filter[T](values: NavigableMap[Value, T]): Stream[T] =
+            filter(valuelist, values)
+
+        def filter[T](remainder: List[Value], values: NavigableMap[Value, T]): Stream[T] = {
+            remainder match {
+                case x :: xs =>
+                    values.get(x) match {
+                        case null => filter(xs, values)
+                        case matched => Stream.cons(matched, filter(xs, values))
+                    }
+                case Nil => Stream.empty
+            }
+        }
+    }
+
     /** Matches any values falling between the given begin (inclusive) and end (exclusive) */
-    // case class RangeValue(begin: AvroV, end: AvroV) extends Value
+    case class ValueRange(begin: Value, end: Value) extends Clause {
+        override def filter[T](values: NavigableMap[Value, T]): Stream[T] =
+            values.subMap(begin, end).values.iterator.toStream
+    }
 }
+
+class Query(val path: List[Clause], val limit: Int = 1000)
 
