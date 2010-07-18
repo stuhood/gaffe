@@ -22,10 +22,6 @@ object AvroUtils
     // empty values sort first, null values sort last
     val EVALUE = {val v = new Value; v.value = ByteBuffer.allocate(0); v}
     val NVALUE = {val v = new Value; v.value = null; v}
-    val EVERTEX = {val v = new Vertex; v.name = EVALUE; v}
-    val NVERTEX = {val v = new Vertex; v.name = NVALUE; v}
-    val EEDGE = {val e = new Edge; e.label = EVALUE; e.vertex = EVERTEX; e}
-    val NEDGE = {val e = new Edge; e.label = NVALUE; e.vertex = NVERTEX; e}
 
     /** Create a Value from an object via toString. */
     def value(ob: Any): Value = {
@@ -36,26 +32,6 @@ object AvroUtils
 
     /** Create a Value list from a seq of objects via toString. */
     def values(obs: Any*): List[Value] = obs.map(value).toList
-
-    /**
-     * Creates a Path object from a list of values.
-     */
-    def mkpath(obs: Any*): Path = {
-        val vals = values(obs: _*)
-        if (vals.size % 2 == 0) throw new IllegalArgumentException("Invalid path")
-
-        val path = new Path
-        path.vertex = new Vertex; path.vertex.name = vals.head
-        path.edges = genarray[Edge](Edge.SCHEMA$,
-            {for (List(label, name) <- vals.tail.sliding(2)) yield {
-                val edge = new Edge
-                edge.label = label
-                edge.vertex = new Vertex
-                edge.vertex.name = name
-                edge
-            }}.toSeq: _*)
-        path
-    }
 
     /**
      * Reuses the given GenericArray and object content.
@@ -74,10 +50,10 @@ object AvroUtils
             array.add(create(obsiter.next))
     }
 
-    def genarray[T <: SpecificRecord](schema: Schema, size: Int): GenericArray[T] =
+    def genarray[T](schema: Schema, size: Int): GenericArray[T] =
         new GenericData.Array[T](size, Schema.createArray(schema))
 
-    def genarray[T <: SpecificRecord](schema: Schema, values: T*): GenericArray[T] = {
+    def genarray[T](schema: Schema, values: T*): GenericArray[T] = {
         val arr = genarray[T](schema, values.size)
         for (value <- values)
             arr.add(value)

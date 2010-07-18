@@ -2,7 +2,6 @@
 package gaffe
 
 import gaffe.AvroUtils._
-import gaffe.io.Range
 import gaffe.PersistedGen._
 
 import java.io.File
@@ -18,7 +17,7 @@ class PersistedGenSpecs extends FlatSpec with ShouldMatchers
     /**
      * Write a PersistedGen containing the given paths.
      */
-    def write(paths: Seq[List[Value]]): PersistedGen = {
+    def write(paths: List[Value]*): PersistedGen = {
         val gen = new Random().nextLong.abs
         // store paths in a MemoryGen
         val memgen = new MemoryGen(gen)
@@ -39,18 +38,21 @@ class PersistedGenSpecs extends FlatSpec with ShouldMatchers
     }
 
     "A PersistedGen" should "be happy to be empty" in {
-        val reader = write(List())
+        val reader = write()
         // check that all views are empty
         for (view <- reader.views)
-            view.chunk(mkpath("blah")) should equal (None)
+            view.get(values("blah")) should equal (None)
     }
 
     it should "not mind containing a few chunks either" in {
-        val reader = write(List(values("pelican", "eats", "trout")))
+        val reader = write(values("pelican", "eats", "trout"),
+            values("shark", "eats", "human"))
         val outbound = reader.viewsFor(inverted = false).head
-        outbound.chunk(mkpath("pelican", "eats", "trout")) should not equal (None)
-        val inbound = reader.viewsFor(inverted = false).head
-        inbound.chunk(mkpath("trout", "eats", "pelican")) should not equal (None)
+        outbound.get(values("pelican", "eats", "trout")) should be ===
+            (Some(values("pelican", "eats", "trout")))
+        val inbound = reader.viewsFor(inverted = true).head
+        inbound.get(values("trout", "eats", "pelican")) should be ===
+            (Some(values("trout", "eats", "pelican")))
     }
 }
 
