@@ -54,5 +54,24 @@ class PersistedGenSpecs extends FlatSpec with ShouldMatchers
         inbound.get(values("trout", "eats", "pelican")) should be ===
             (Some(values("trout", "eats", "pelican")))
     }
+
+    /*
+    it should "be fast" in {
+        var start = System.currentTimeMillis
+        // store paths in a MemoryGen
+        val memgen = new MemoryGen(new Random().nextLong.abs)
+        for (x <- 0 until 1000; y <- 1000 until 2000) {
+            memgen.add(values(x, "loves", y))
+        }
+        println("Added in " + (System.currentTimeMillis - start))
+
+        System.gc
+        Thread.sleep(5000)
+
+        start = System.currentTimeMillis
+        val reader = write(memgen)
+        println("Flushed in " + (System.currentTimeMillis - start))
+    }
+    */
 }
 
