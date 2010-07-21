@@ -8,6 +8,8 @@ class Gaffe(info: ProjectInfo) extends DefaultProject(info) with avro.AvroCompil
 
     val avro = "org.apache.hadoop" % "avro" % "1.3.3"
     val configgy  = "net.lag" % "configgy" % "1.5.4"
+    // for OpenBitSet
+    val lucene = "org.apache.lucene" % "lucene-core" % "3.0.2"
     val scalatest = "org.scalatest" % "scalatest" % "1.2-for-scala-2.8.0.RC6-SNAPSHOT"
 
     // clean up avro generated code on clean: default target "src/main/java"

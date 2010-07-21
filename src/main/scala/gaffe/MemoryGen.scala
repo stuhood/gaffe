@@ -12,16 +12,6 @@ object MemoryGen {
     final case class Vertex(val name: Value, val ins: AdjacencyList, val outs: AdjacencyList) {
         def this(name: Value) = this(name, new AdjacencyList, new AdjacencyList)
 
-        // temporary
-        def getOut(label: Value, vertex: Value): Option[Edge] = outs.get(label) match {
-            case null => None
-            case innermap =>
-                innermap.get(vertex) match {
-                    case null => None
-                    case x => Some(x)
-                }
-        }
-
         def addOut(label: Value, vertex: Vertex) =
             add(outs, label, vertex.name, Edge(label, vertex))
 

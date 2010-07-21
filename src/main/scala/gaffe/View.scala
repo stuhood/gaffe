@@ -6,6 +6,7 @@ import gaffe.io._
 import gaffe.View._
 
 import java.io.{Closeable, File}
+import java.nio.ByteBuffer
 import scala.collection.JavaConversions.asIterable
 
 import org.apache.avro.file.{DataFileWriter, DataFileReader}
@@ -17,7 +18,6 @@ import org.apache.avro.Schema
  * A View is a sorted list of paths contained in a persisted generation. Views have metadata
  * that describes the data they store, such as whether they store inbound or outbound edges
  * and their depth.
- * TODO: allow for 'partial' views, storing only a portion of the data for a generation
  */
 object View {
     // for persisting the generation in file metadata
@@ -26,7 +26,7 @@ object View {
 
     // maximum number of paths to store in each chunk
     // (TODO: replace with size/cardinality calculation)
-    val PATHS_PER_CHUNK = 1024
+    val TUPLES_PER_CHUNK = 1024
 
     /** Opens a reader for the given descriptor. */
     def apply(desc: Descriptor): View = new View(desc, loadmetadata(desc))
@@ -66,11 +66,14 @@ object View {
     class Writer(desc: Descriptor, meta: ViewMetadata) extends Closeable {
         // reusable state
         val chunk = new Chunk
-        // TODO: currently only writes chunks of depth 0 and arity 3
-        chunk.depth = 0; chunk.arity = 3
-        chunk.values = genarray(Value.SCHEMA$, PATHS_PER_CHUNK + chunk.arity)
-        // TODO: currently only writes "high cardinality" chunks
-        chunk.runlengths = genarray(Schema.create(Schema.Type.LONG), 1024)
+        // TODO: currently only writes chunks at level 0 with arity 3
+        assert(meta.depth == 1)
+        chunk.level = 0; chunk.arity = 3
+        // TODO: currently only writes list chunks
+        chunk.ctype = ChunkType.LIST
+        chunk.values = genarray(Value.SCHEMA$, TUPLES_PER_CHUNK + chunk.arity)
+        chunk.markset = ByteBuffer.allocate(TUPLES_PER_CHUNK)
+        val markset = Markset(TUPLES_PER_CHUNK)
 
         // avro datafile writer
         val writer = new DataFileWriter(new SpecificDatumWriter[Chunk])
@@ -90,16 +93,23 @@ object View {
                 chunk.values.add(vertex.name)
                 chunk.values.add(edge.label)
                 chunk.values.add(edge.vertex.name)
+                markset.append(false, true)
             }
+            markset.toggle
             
             // occasionally flush
-            if (chunk.values.size >= PATHS_PER_CHUNK) flush()
+            if (chunk.values.size >= TUPLES_PER_CHUNK) flush()
         }
 
         private def flush() = if (chunk.values.size > 0) {
+            // finalize and append
+            chunk.count = chunk.values.size.asInstanceOf[Int]
+            markset.serialize(chunk.markset)
             writer.append(chunk)
+            // reset for next chunk
             chunk.values.clear
-            chunk.runlengths.clear
+            chunk.markset.clear
+            markset.clear
         }
 
         override def close() = {
@@ -126,7 +136,7 @@ class View(desc: Descriptor, val meta: ViewMetadata) {
         try while (reader.hasNext) {
             // read the next chunk
             reader.next(chunk)
-            assert(chunk.depth == 0, "TODO: see View.Writer")
+            assert(chunk.level == 0, "TODO: see View.Writer")
             assert(chunk.arity == 3, "TODO: see View.Writer")
 
             // if any path is >= our path, accept it
