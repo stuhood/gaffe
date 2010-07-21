@@ -62,7 +62,7 @@ class MemoryGenSpecs extends FlatSpec with ShouldMatchers
         graph.get(Query(("alpha", "gaga"), ("", null), "term")) should be ===
             (Stream(values("alpha", "1st", "term"), values("beta", "2nd", "term")))
         graph.get(Query(null, ("2nd", "3rd"), "term")) should be ===
-            (Stream(values("beta", "2nd", "term")))
+            (Stream(values("beta", "2nd", "term"), values("gaga", "3rd", "term")))
     }
 
     it should "support List clauses" in {

@@ -81,15 +81,28 @@ class MemoryGen(val generation: Long) {
     }
 
     private def get(query: List[Query.Clause], stack: List[Value]): Stream[List[Value]] = query match {
-        case destq :: Nil =>
-            // found a path
-            Stream(stack.reverse)
-        case srcq :: edgeq :: destq :: xs =>
+        case srcq :: edgeq :: destq :: Nil =>
             // query outbound edges, and recurse on the discovered paths
+            segments(srcq.segments, edgeq.segments, edgeq.segments, destq.segments, destq.segments).map(e =>
+                List(e.src, e.label, e.dest))
+        case srcq :: edgeq :: destq :: xs =>
             // TODO
-            throw new RuntimeException("Oops")
+            throw new RuntimeException("FIXME: needs support for arbitrary length paths.")
         case _ =>
             throw new IllegalArgumentException("queries alternate vertices and edges")
+    }
+
+    private def segments(src: Stream[Segment], label: Stream[Segment], labelf: ()=>Stream[Segment], dest: Stream[Segment], destf: ()=>Stream[Segment]): Stream[Edge] = {
+        if (src isEmpty)
+            return Stream.empty
+        if (label isEmpty)
+            // move to the next value at the src level, and reset the two lower levels
+            return segments(src.tail, labelf(), labelf, destf(), destf)
+        if (dest isEmpty)
+            // reset the dest level, and move to the next value in the label level
+            return segments(src, label.tail, labelf, destf(), destf)
+        // deal with a single segment, and recurse
+        segment(src.head, label.head, dest.head).append(segments(src, label, labelf, dest.tail, destf))
     }
 
     /**
