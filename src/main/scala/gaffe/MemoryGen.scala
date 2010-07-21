@@ -147,14 +147,8 @@ class MemoryGen(val generation: Long) {
      * If it doesn't already exist, adds a copy of the edge to the set of edges.
      */
     private def maybeCreate(src: Value, label: Value, dest: Value): Unit = {
-        // test existence without deep copying
         val edge = Edge(src, label, dest)
-        if (outbound.contains(edge))
-            // exists
-            return
-
-        // deep copy and add
-        edge.label.value = copy(label.value)
+        if (outbound.contains(edge)) return;
         outbound.add(edge)
         inbound.add(edge)
     }
@@ -163,10 +157,6 @@ class MemoryGen(val generation: Long) {
      * If it doesn't already exist, adds a copy of the vertex to the set of vertices.
      */
     private def maybeCreate(value: Value): Unit = if (!vertices.contains(value)) {
-        val clone = new Value
-        // copy value content
-        clone.value = copy(value.value)
-        // store
         vertices.add(value)
     }
 
