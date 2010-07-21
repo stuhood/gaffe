@@ -41,9 +41,8 @@ class MemoryGenSpecs extends FlatSpec with ShouldMatchers
         val graph = memgen(values("apple", "tastes", "sweet"),
             values("banana", "tastes", "edgy"))
         
-        for (adjacencies <- graph.iterator) yield {
-            adjacencies.name
-        } should be === (values("apple", "banana", "edgy", "sweet"))
+        graph.outboundIterator.map(_.src).toList should equal (values("apple", "banana"))
+        graph.inboundIterator.map(_.dest).toList should equal (values("edgy", "sweet"))
     }
 
     "A Query against a MemoryGen" should "support Identity clauses" in {

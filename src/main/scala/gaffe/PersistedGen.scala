@@ -29,7 +29,7 @@ object PersistedGen {
         private def writeView(gen: MemoryGen, meta: ViewMetadata, idx: Int): View = {
             val viewdesc = View.Descriptor(idx, desc)
             val writer = new View.Writer(viewdesc, meta)
-            try gen.iterator.foreach(writer.append(_)) finally writer.close
+            try writer.write(gen) finally writer.close
             new View(viewdesc, meta)
         }
     }

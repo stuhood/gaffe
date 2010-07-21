@@ -82,20 +82,22 @@ object View {
         writer.setMeta(VIEW_META_KEY, serialize(meta))
         writer.create(Chunk.SCHEMA$, desc.filename("data"))
 
+        def write(memgen: MemoryGen) = {
+            if (meta.inverted)
+                memgen.inboundIterator.foreach(e => append(e.dest, e.label, e.src))
+            else
+                memgen.outboundIterator.foreach(e => append(e.src, e.label, e.dest))
+        }
+
         /**
          * Vertices are appended to a view in order, and each vertex results in one or
          * more paths being written in sorted order to disk.
          */
-        def append(vertex: MemoryGen.Vertex) = {
-            // append appropriate edge values for this view
-            val adjedges = if (meta.inverted) vertex.ins else vertex.outs
-            for (outer <- adjedges.values; edge <- outer.values) {
-                chunk.values.add(vertex.name)
-                chunk.values.add(edge.label)
-                chunk.values.add(edge.vertex.name)
-                markset.append(false, true)
-            }
-            markset.toggle
+        private def append(lhs: Value, label: Value, rhs: Value) = {
+            chunk.values.add(lhs)
+            chunk.values.add(label)
+            chunk.values.add(rhs)
+            markset.append(false, true)
             
             // occasionally flush
             if (chunk.values.size >= TUPLES_PER_CHUNK) flush()

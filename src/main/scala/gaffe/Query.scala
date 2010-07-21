@@ -1,7 +1,7 @@
 
 package gaffe
 
-import gaffe.AvroUtils.{value, values}
+import gaffe.AvroUtils.{EVALUE, NVALUE, value, values}
 import gaffe.Query._
 
 import java.util.NavigableMap
@@ -17,65 +17,66 @@ object Query {
     def apply(clausevals: Any*): Query = {
         val clauses = for (clause <- clausevals) yield clause match {
             case null =>
-                Identity()
+                IdentityClause()
             case (left, right) =>
-                Range(value(left), value(right))
+                RangeClause(value(left), value(right))
             case list: List[_] =>
-                ValueList(values(list: _*))
+                ListClause(values(list: _*))
             case exact =>
-                Exact(value(exact))
+                ExactClause(value(exact))
         }
         new Query(clauses.toList)
     }
 
     /** Create a query for known values from a sequence of Avro Values. */
-    def apply(values: List[Value]): Query = new Query(values.map(Exact(_)).toList)
+    def apply(values: List[Value]): Query = new Query(values.map(ExactClause(_)).toList)
+
+    // a possible matching value or possible (inclusive,exclusive) range
+    abstract class Segment {
+        def left(): Value
+    }
+    case class Point(value: Value) extends Segment {
+        override def left() = value
+    }
+    case class Range(begin: Value, end: Value) extends Segment {
+        override def left() = begin
+    }
 
     abstract class Clause() {
-        def filter[T](values: NavigableMap[Value, T]): Stream[T]
+        def segments(): Stream[Segment]
+        // should eventually take samples of the input to provide a more exact answer
+        def specificity: Int
     }
 
     /** Matches all values */
-    case class Identity() extends Clause {
-        override def filter[T](values: NavigableMap[Value, T]): Stream[T] =
-            values.values.iterator.toStream
+    val unboundedStream = Stream(Range(EVALUE, NVALUE))
+    case class IdentityClause() extends Clause {
+        override def segments(): Stream[Segment] = unboundedStream
+        override def specificity: Int = 0
     }
 
     /** Matches a single known value */
-    case class Exact(value: Value) extends Clause {
-        override def filter[T](values: NavigableMap[Value, T]): Stream[T] = {
-            values.get(value) match {
-                case null => Stream.empty
-                case x => Stream(x)
-            }
-        }
+    case class ExactClause(value: Value) extends Clause {
+        val stream = Stream(Point(value))
+        override def segments(): Stream[Segment] = stream
+        override def specificity: Int = 3
     }
 
     /** Matches any of a list of values */
-    case class ValueList(valuelist: List[Value]) extends Clause {
+    case class ListClause(valuelist: List[Value]) extends Clause {
         for (left :: right :: Nil <- valuelist.sliding(2, 1))
             assert(left.compareTo(right) < 0, "unsorted value list: %s !< %s".format(left, right))
-
-        // TODO: should use alternative implementations based on relative size
-        override def filter[T](values: NavigableMap[Value, T]): Stream[T] =
-            filter(valuelist, values)
-
-        def filter[T](remainder: List[Value], values: NavigableMap[Value, T]): Stream[T] = {
-            remainder match {
-                case x :: xs =>
-                    values.get(x) match {
-                        case null => filter(xs, values)
-                        case matched => Stream.cons(matched, filter(xs, values))
-                    }
-                case Nil => Stream.empty
-            }
-        }
+        
+        val stream = valuelist.map(Point(_)).toStream
+        override def segments(): Stream[Segment] = stream
+        override def specificity: Int = 2
     }
 
     /** Matches any values falling between the given begin (inclusive) and end (exclusive) */
-    case class Range(begin: Value, end: Value) extends Clause {
-        override def filter[T](values: NavigableMap[Value, T]): Stream[T] =
-            values.subMap(begin, end).values.iterator.toStream
+    case class RangeClause(begin: Value, end: Value) extends Clause {
+        val stream = Stream(Range(begin, end))
+        override def segments(): Stream[Segment] = stream
+        override def specificity: Int = 1
     }
 }
 

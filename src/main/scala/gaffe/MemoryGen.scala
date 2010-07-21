@@ -1,45 +1,43 @@
 
 package gaffe
 
+import gaffe.AvroUtils._
 import gaffe.MemoryGen._
+import gaffe.Query.{Point, Segment, Range}
 
-import java.util.TreeMap
+import java.util.{Comparator, SortedSet, TreeSet}
 
-import scala.collection.JavaConversions.asIterator
+import scala.collection.JavaConversions._
+import scala.collection.mutable.Buffer
 
 object MemoryGen {
-    // a Vertex with adjacency lists
-    final case class Vertex(val name: Value, val ins: AdjacencyList, val outs: AdjacencyList) {
-        def this(name: Value) = this(name, new AdjacencyList, new AdjacencyList)
-
-        def addOut(label: Value, vertex: Vertex) =
-            add(outs, label, vertex.name, Edge(label, vertex))
-
-        def addIn(label: Value, vertex: Vertex) =
-            add(ins, vertex.name, label, Edge(label, vertex))
-        
-        private def add(edges: AdjacencyList, first: Value, second: Value, edge: Edge) = {
-            val innermap = edges.get(first) match {
-                case null =>
-                    val x = new TreeMap[Value, Edge]
-                    edges.put(first, x)
-                    x
-                case x => x
-            }
-            innermap.put(second, edge)
+    final case class Edge(val src: Value, val label: Value, val dest: Value)
+    
+    object OutComparator extends Comparator[Edge] {
+        override def compare(o1: Edge, o2: Edge): Int = {
+            var c = o1.src.compareTo(o2.src)
+            if (c != 0) return c
+            c = o1.label.compareTo(o2.label)
+            if (c != 0) return c
+            return o1.dest.compareTo(o2.dest)
         }
     }
 
-    // simple inbound/outbound edge class
-    final case class Edge(val label: Value, val vertex: Vertex)
-
-    // maps 'edgeval -> destval -> edge', or 'destval -> edgeval -> edge'
-    type AdjacencyList = TreeMap[Value, TreeMap[Value, Edge]]
+    object InComparator extends Comparator[Edge] {
+        override def compare(o1: Edge, o2: Edge): Int = {
+            var c = o1.dest.compareTo(o2.dest)
+            if (c != 0) return c
+            c = o1.label.compareTo(o2.label)
+            if (c != 0) return c
+            return o1.src.compareTo(o2.src)
+        }
+    }
 }
 
 class MemoryGen(val generation: Long) {
-    var version: Long = 0
-    private val vertices: TreeMap[Value,Vertex] = new TreeMap
+    val vertices = new TreeSet[Value]
+    val outbound = new TreeSet[Edge](OutComparator)
+    val inbound = new TreeSet[Edge](InComparator)
 
     /**
      * Assumes that the given odd numbered list of Values represents alternating Vertices and Edges, and adds it as a path in the graph.
@@ -50,19 +48,14 @@ class MemoryGen(val generation: Long) {
 
         // add the source
         val iter = path.iterator
-        var source = canonicalize(iter.next)
-        // add the remaining path
-        for (pair <- iter.sliding(2)) {
-            val edge = pair(0)
-            val dest = canonicalize(pair(1))
-
-            // add edges
-            source.addOut(edge, dest)
-            dest.addIn(edge, source)
-
-            source = dest
+        var src = iter.next
+        maybeCreate(src)
+        // and the rest of the path
+        for (edge :: dest :: Nil <- iter.sliding(2)) {
+            maybeCreate(dest)
+            maybeCreate(src, edge, dest)
+            src = dest
         }
-        version = 1 + version
     }
 
     /**
@@ -70,54 +63,115 @@ class MemoryGen(val generation: Long) {
      * alternating Vertices and Edges).
      */
     def get(query: Query): Stream[List[Value]] = query.path match {
-        case srcq :: xs =>
-            // recurse for each matching intial vertex, and flatten the results
-            srcq.filter(vertices).flatMap(vertex => getEdges(vertex.outs, xs, vertex.name :: Nil)).take(query.limit)
         case Nil =>
-            throw new IllegalArgumentException("query must contain at least one value")
+            Stream.empty
+        case srcq :: Nil =>
+            // query with no edges
+            srcq.segments.flatMap(_ match {
+                    case Point(vertex) if vertices.contains(vertex) =>
+                        Stream(List(vertex))
+                    case Point(vertex) =>
+                        Stream.empty
+                    case Range(begin, end) =>
+                        vertices.subSet(begin, end).map(List(_))
+                }).take(query.limit)
+        case _ =>
+            // at least one edge involved: recurse
+            get(query.path, Nil).take(query.limit)
     }
 
-    /**
-     * Having matched an edge type, query for (edge,dest) pairs in 'within'.
-     */
-    private def getDests(within: TreeMap[Value,Edge], query: List[Query.Clause], stack: List[Value]): Stream[List[Value]] = query match {
-        case destq :: xs =>
-            destq.filter(within).flatMap(edge => getEdges(edge.vertex.outs, xs, edge.vertex.name :: edge.label :: stack))
-        case Nil =>
-            throw new IllegalArgumentException("value list must represent alternating vertices and edges")
-    }
-
-    /**
-     * Positioned to query for edges in 'within'.
-     */
-    private def getEdges(within: AdjacencyList, query: List[Query.Clause], stack: List[Value]): Stream[List[Value]] = query match {
-        case edgeq :: xs =>
-            // recurse for matching edges
-            edgeq.filter(within).flatMap(edges => getDests(edges, xs, stack))
-        case Nil =>
-            // previous vertex was the last in a path: return it
+    private def get(query: List[Query.Clause], stack: List[Value]): Stream[List[Value]] = query match {
+        case destq :: Nil =>
+            // found a path
             Stream(stack.reverse)
+        case srcq :: edgeq :: destq :: xs =>
+            // query outbound edges, and recurse on the discovered paths
+            // TODO
+            throw new RuntimeException("Oops")
+        case _ =>
+            throw new IllegalArgumentException("queries alternate vertices and edges")
     }
 
     /**
-     * Returns an iterator over graph vertices in sorted order.
+     * Composes value/range segments and queries outbound edges.
+     * TODO: Should determine whether src or dest is more specific.
      */
-    def iterator(): Iterator[Vertex] = vertices.values().iterator
+    private def segment(src: Segment, label: Segment, dest: Segment): Stream[Edge] = {
+        (src, label, dest) match {
+            case (Point(sv), Point(lv), Point(dv)) =>
+                // all points
+                val edge = Edge(sv, lv, dv)
+                if (outbound contains edge) Stream(edge) else Stream.empty
+            case (Point(sv), Point(lv), Range(db,de)) =>
+                // range under points
+                val begin = Edge(sv, lv, db)
+                val end = Edge(sv, lv, de)
+                outbound.subSet(begin, end).iterator.toStream
+            case (Point(sv), Range(lb,le), _) =>
+                // range under point: recurse on each unique label
+                val begin = Edge(sv, lb, EVALUE)
+                val end = Edge(sv, le, NVALUE)
+                uniqueLabels(outbound.subSet(begin, end)).flatMap(point => segment(src, point, dest))
+            case (Range(sb,se), _, _) =>
+                // src range: recurse on each matching Point
+                vertices.subSet(sb, se).toStream.flatMap(point => segment(Point(point), label, dest))
+        }
+    }
 
     /**
-     * Adds a value to the given vertices, and returns the canonical version of the vertex and its adjacencies.
+     * Collects unique edge labels from a sorted sequence.
+     * TODO: conditionally filter Edges, rather than recursing on unique labels.
      */
-    private def canonicalize(value: Value): Vertex = vertices.get(value) match {
-        case null =>
-            // place it in the graph
-            val vertex = new Vertex(value)
-            vertices.put(value, vertex)
-            vertex
-        case x => x
+    private def uniqueLabels(edges: SortedSet[Edge]): Stream[Point] = {
+        val iter = edges.iterator
+        if (!iter.hasNext)
+            return Stream.empty
+        // collect unique values
+        val builder = Buffer.newBuilder[Point]
+        var previous = iter.next.label
+        builder += Point(previous)
+        for (current <- iter if !previous.equals(current.label)) {
+            builder += Point(current.label)
+            previous = current.label
+        }
+        builder.result.toStream
+    }
+
+    /**
+     * @return An iterator over graph vertices in sorted order.
+     */
+    def outboundIterator(): Iterator[Edge] = outbound.iterator
+    def inboundIterator(): Iterator[Edge] = inbound.iterator
+
+    /**
+     * If it doesn't already exist, adds a copy of the edge to the set of edges.
+     */
+    private def maybeCreate(src: Value, label: Value, dest: Value): Unit = {
+        // test existence without deep copying
+        val edge = Edge(src, label, dest)
+        if (outbound.contains(edge))
+            // exists
+            return
+
+        // deep copy and add
+        edge.label.value = copy(label.value)
+        outbound.add(edge)
+        inbound.add(edge)
+    }
+
+    /**
+     * If it doesn't already exist, adds a copy of the vertex to the set of vertices.
+     */
+    private def maybeCreate(value: Value): Unit = if (!vertices.contains(value)) {
+        val clone = new Value
+        // copy value content
+        clone.value = copy(value.value)
+        // store
+        vertices.add(value)
     }
 
     override def toString: String = {
-        "#<MemoryGen %d %s>".format(version, vertices.keySet)
+        "#<MemoryGen %s>".format(outbound)
     }
 }
 

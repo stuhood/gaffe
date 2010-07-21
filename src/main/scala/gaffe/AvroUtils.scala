@@ -23,6 +23,15 @@ object AvroUtils
     val EVALUE = {val v = new Value; v.value = ByteBuffer.allocate(0); v}
     val NVALUE = {val v = new Value; v.value = null; v}
 
+    /** Copies a ByteBuffer. */
+    def copy(buff: ByteBuffer): ByteBuffer = {
+        val clone = ByteBuffer.allocate(buff.remaining)
+        clone.put(buff)
+        buff.rewind
+        clone.flip
+        clone
+    }
+
     /** Create a Value from an object via toString. */
     def value(ob: Any): Value = {
         val value = new Value
