@@ -75,5 +75,14 @@ class MemoryGenSpecs extends FlatSpec with ShouldMatchers
         graph.get(Query(null, List("2nd"), "term")) should be ===
             (Stream(values("beta", "2nd", "term")))
     }
+
+    it should "support deep structural queries" in {
+        val graph = memgen(values("4", "follows", "3"),
+            values("3", "follows", "2"),
+            values("2", "follows", "1"))
+        
+        graph.get(Query("4", null, "3", "follows", null, null, "1")) should be ===
+            (Stream(values("4", "follows", "3", "follows", "2", "follows", "1")))
+    }
 }
 

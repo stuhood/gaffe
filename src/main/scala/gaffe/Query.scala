@@ -23,13 +23,13 @@ object Query {
             case list: List[_] =>
                 ListClause(values(list: _*))
             case exact =>
-                ExactClause(value(exact))
+                PointClause(value(exact))
         }
         new Query(clauses.toList)
     }
 
     /** Create a query for known values from a sequence of Avro Values. */
-    def apply(values: List[Value]): Query = new Query(values.map(ExactClause(_)).toList)
+    def apply(values: List[Value]): Query = new Query(values.map(PointClause(_)).toList)
 
     // a possible matching value or possible (inclusive,exclusive) range
     abstract class Segment {
@@ -56,7 +56,7 @@ object Query {
     }
 
     /** Matches a single known value */
-    case class ExactClause(value: Value) extends Clause {
+    case class PointClause(value: Value) extends Clause {
         val stream = Stream(Point(value))
         override def segments(): Stream[Segment] = stream
         override def specificity: Int = 3

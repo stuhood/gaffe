@@ -68,48 +68,55 @@ class MemoryGen(val generation: Long) {
         case srcq :: Nil =>
             // query with no edges
             srcq.segments.flatMap(_ match {
-                    case Point(vertex) if vertices.contains(vertex) =>
-                        Stream(List(vertex))
                     case Point(vertex) =>
-                        Stream.empty
+                        if (vertices.contains(vertex))
+                            Stream(List(vertex))
+                        else
+                            Stream.empty
                     case Range(begin, end) =>
                         vertices.subSet(begin, end).map(List(_))
                 }).take(query.limit)
-        case _ =>
-            // at least one edge involved: recurse
-            get(query.path, Nil).take(query.limit)
-    }
-
-    private def get(query: List[Query.Clause], stack: List[Value]): Stream[List[Value]] = query match {
-        case srcq :: edgeq :: destq :: Nil =>
-            // query outbound edges, and recurse on the discovered paths
-            segments(srcq.segments, edgeq.segments, edgeq.segments, destq.segments, destq.segments).map(e =>
-                List(e.src, e.label, e.dest))
         case srcq :: edgeq :: destq :: xs =>
-            // TODO
-            throw new RuntimeException("FIXME: needs support for arbitrary length paths.")
+            // query a level of edges and recurse on the discovered dest vertices
+            get(srcq.segments, edgeq, destq).flatMap(e =>
+                get(e.dest, xs, e.label :: e.src :: Nil)).take(query.limit)
         case _ =>
             throw new IllegalArgumentException("queries alternate vertices and edges")
     }
 
-    private def segments(src: Stream[Segment], label: Stream[Segment], labelf: ()=>Stream[Segment], dest: Stream[Segment], destf: ()=>Stream[Segment]): Stream[Edge] = {
+    private def get(src: Value, query: List[Query.Clause], stack: List[Value]): Stream[List[Value]] = query match {
+        case Nil =>
+            // tail of query
+            Stream((src :: stack).reverse)
+        case edgeq :: destq :: xs =>
+            // query a level of edges and recurse
+            get(Stream(Point(src)), edgeq, destq).flatMap(e =>
+                get(e.dest, xs, e.label :: e.src :: stack))
+        case _ =>
+            throw new IllegalArgumentException("queries alternate vertices and edges")
+    }
+
+    private def get(src: Stream[Segment], labelq: Query.Clause, destq: Query.Clause): Stream[Edge] =
+        get(src, labelq.segments, labelq.segments, destq.segments, destq.segments)
+
+    private def get(src: Stream[Segment], label: Stream[Segment], labelf: ()=>Stream[Segment], dest: Stream[Segment], destf: ()=>Stream[Segment]): Stream[Edge] = {
         if (src isEmpty)
             return Stream.empty
         if (label isEmpty)
             // move to the next value at the src level, and reset the two lower levels
-            return segments(src.tail, labelf(), labelf, destf(), destf)
+            return get(src.tail, labelf(), labelf, destf(), destf)
         if (dest isEmpty)
             // reset the dest level, and move to the next value in the label level
-            return segments(src, label.tail, labelf, destf(), destf)
+            return get(src, label.tail, labelf, destf(), destf)
         // deal with a single segment, and recurse
-        segment(src.head, label.head, dest.head).append(segments(src, label, labelf, dest.tail, destf))
+        get(src.head, label.head, dest.head).append(get(src, label, labelf, dest.tail, destf))
     }
 
     /**
      * Composes value/range segments and queries outbound edges.
      * TODO: Should determine whether src or dest is more specific.
      */
-    private def segment(src: Segment, label: Segment, dest: Segment): Stream[Edge] = {
+    private def get(src: Segment, label: Segment, dest: Segment): Stream[Edge] = {
         (src, label, dest) match {
             case (Point(sv), Point(lv), Point(dv)) =>
                 // all points
@@ -124,10 +131,10 @@ class MemoryGen(val generation: Long) {
                 // range under point: recurse on each unique label
                 val begin = Edge(sv, lb, EVALUE)
                 val end = Edge(sv, le, NVALUE)
-                uniqueLabels(outbound.subSet(begin, end)).flatMap(point => segment(src, point, dest))
+                uniqueLabels(outbound.subSet(begin, end)).flatMap(point => get(src, point, dest))
             case (Range(sb,se), _, _) =>
                 // src range: recurse on each matching Point
-                vertices.subSet(sb, se).toStream.flatMap(point => segment(Point(point), label, dest))
+                vertices.subSet(sb, se).toStream.flatMap(point => get(Point(point), label, dest))
         }
     }
 
